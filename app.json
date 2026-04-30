@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "75 Hard",
+    "slug": "75-hard-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D1117"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.personal.75hardtracker",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Store your daily progress photos locally.",
+        "NSCameraUsageDescription": "Take your daily progress photo for 75 Hard.",
+        "NSPhotoLibraryAddUsageDescription": "Save progress photos to your photo library.",
+        "NSFaceIDUsageDescription": "Lock app access with Face ID."
+      }
+    },
+    "android": {
+      "package": "com.personal.sevenfivehard",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D1117"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "sounds": [],
+          "iosDisplayInForeground": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow 75 Hard to access your photos for progress tracking.",
+          "cameraPermission": "Allow 75 Hard to take your daily progress photo."
+        }
+      ],
+      "expo-local-authentication",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow 75 Hard to access your photo library.",
+          "savePhotosPermission": "Allow 75 Hard to save progress photos."
+        }
+      ]
+    ]
+  }
+}
