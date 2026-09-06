@@ -34,10 +34,10 @@ export async function saveEntry(entry: DailyEntry): Promise<void> {
   if (!dates.includes(entry.date)) {
     dates.push(entry.date);
   }
-  await AsyncStorage.multiSet([
-    [key, JSON.stringify(entry)],
-    [STORAGE_KEYS.ALL_DATES_INDEX, JSON.stringify(dates)],
-  ]);
+  await AsyncStorage.setMany({
+    [key]: JSON.stringify(entry),
+    [STORAGE_KEYS.ALL_DATES_INDEX]: JSON.stringify(dates),
+  });
 }
 
 export async function loadAllEntries(): Promise<DailyEntry[]> {
@@ -46,9 +46,9 @@ export async function loadAllEntries(): Promise<DailyEntry[]> {
   const dates: string[] = JSON.parse(rawDates);
   if (dates.length === 0) return [];
   const keys = dates.map(dateKey);
-  const pairs = await AsyncStorage.multiGet(keys);
-  return pairs
-    .map(([, raw]) => (raw ? (JSON.parse(raw) as DailyEntry) : null))
+  const entries = await AsyncStorage.getMany(keys);
+  return Object.values(entries)
+    .map((raw) => (raw ? (JSON.parse(raw) as DailyEntry) : null))
     .filter((e): e is DailyEntry => e !== null)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
