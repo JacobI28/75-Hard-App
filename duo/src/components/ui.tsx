@@ -1,0 +1,120 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { PlayerId } from '../lib/types';
+
+export function ProgressRing({ value, total, size = 56 }: { value: number; total: number; size?: number }) {
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = total ? value / total : 0;
+  const complete = total > 0 && value >= total;
+  return (
+    <div className="ring-wrap" style={{ width: size, height: size }}>
+      <svg className="ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--surface-3)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={complete ? 'var(--good)' : 'var(--accent)'}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - pct)}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <div className={`ring-label${complete ? ' done' : ''}`}>{complete ? '✓' : `${value}/${total}`}</div>
+    </div>
+  );
+}
+
+export const CheckIcon = () => (
+  <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+    <path d="M3 8.5 6.5 12 13 4.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export function Avatar({ name, pid }: { name: string; pid: PlayerId }) {
+  return <div className={`avatar ${pid}`}>{(name || '?').trim().charAt(0).toUpperCase()}</div>;
+}
+
+export function Sheet({ title, sub, onClose, children }: { title: string; sub?: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="backdrop" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="row between" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <h2>{title}</h2>
+            {sub && <p className="muted small" style={{ margin: '0 0 16px' }}>{sub}</p>}
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export interface Toast {
+  id: number;
+  pid: PlayerId;
+  name: string;
+  text: string;
+}
+
+export function useToasts() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const nextId = useRef(1);
+  const push = useCallback((t: Omit<Toast, 'id'>) => {
+    const id = nextId.current++;
+    setToasts((ts) => [...ts.slice(-2), { ...t, id }]);
+    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 3800);
+  }, []);
+  return { toasts, push };
+}
+
+export function Toasts({ toasts }: { toasts: Toast[] }) {
+  return (
+    <div className="toasts" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`toast ${t.pid}`}>
+          <Avatar name={t.name} pid={t.pid} />
+          <span>{t.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const EMOJIS = ['🏋️', '🏃', '🥗', '💧', '📖', '📸', '🚫', '😴', '🧘', '🤸', '🧊', '📵', '🍬', '👟', '✅', '💊', '🚴', '🏊', '🥩', '☕', '✍️', '🎯', '🧠', '🔥'];
+
+const iconProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', viewBox: '0 0 24 24' } as const;
+
+export const Icons = {
+  today: () => (
+    <svg {...iconProps}>
+      <path d="M12 3c1.5 3 4.5 4.5 4.5 9a4.5 4.5 0 0 1-9 0c0-2 1-3.5 2-4.5.5 1.5 1.5 2.5 2.5 2.5 0-3-1-5 0-7z" />
+    </svg>
+  ),
+  history: () => (
+    <svg {...iconProps}>
+      <rect x="3" y="4" width="18" height="17" rx="3" />
+      <path d="M3 9h18M8 2v4M16 2v4" />
+    </svg>
+  ),
+  settings: () => (
+    <svg {...iconProps}>
+      <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="10" cy="17" r="2" />
+    </svg>
+  ),
+};
