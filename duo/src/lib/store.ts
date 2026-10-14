@@ -21,9 +21,29 @@ export const isSyncConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.
 const LOCAL_PREFIX = 'duo.challenge.';
 const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('duo-sync') : null;
 
+// Falls back to memory when the browser refuses storage, so the app still works for the visit.
+const memory = new Map<string, string>();
+
+function getItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key) ?? memory.get(key) ?? null;
+  } catch {
+    return memory.get(key) ?? null;
+  }
+}
+
+function setItem(key: string, value: string) {
+  memory.set(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* memory copy is used instead */
+  }
+}
+
 function readLocal(code: string): Challenge | null {
   try {
-    const raw = localStorage.getItem(LOCAL_PREFIX + code);
+    const raw = getItem(LOCAL_PREFIX + code);
     return raw ? (JSON.parse(raw) as Challenge) : null;
   } catch {
     return null;
@@ -44,7 +64,7 @@ function applyChange(target: Record<string, unknown>, [path, value]: Change) {
 const localBackend: Backend = {
   kind: 'local',
   async create(ch) {
-    localStorage.setItem(LOCAL_PREFIX + ch.code, JSON.stringify(ch));
+    setItem(LOCAL_PREFIX + ch.code, JSON.stringify(ch));
     channel?.postMessage(ch.code);
   },
   async get(code) {
@@ -68,7 +88,7 @@ const localBackend: Backend = {
     const ch = readLocal(code);
     if (!ch) throw new Error('Challenge not found');
     for (const c of changes) applyChange(ch as unknown as Record<string, unknown>, c);
-    localStorage.setItem(LOCAL_PREFIX + code, JSON.stringify(ch));
+    setItem(LOCAL_PREFIX + code, JSON.stringify(ch));
     channel?.postMessage(code);
     window.dispatchEvent(new Event('duo-local'));
   },
@@ -136,7 +156,7 @@ const SESSION_KEY = 'duo.session';
 
 export function loadSession(): Session | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = getItem(SESSION_KEY);
     return raw ? (JSON.parse(raw) as Session) : null;
   } catch {
     return null;
@@ -144,10 +164,11 @@ export function loadSession(): Session | null {
 }
 
 export function saveSession(s: Session | null) {
+  if (s) return setItem(SESSION_KEY, JSON.stringify(s));
+  memory.delete(SESSION_KEY);
   try {
-    if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    else localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
   } catch {
-    /* storage unavailable — session lasts for this visit only */
+    /* storage unavailable */
   }
 }

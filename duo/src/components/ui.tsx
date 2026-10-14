@@ -94,6 +94,30 @@ export function Toasts({ toasts }: { toasts: Toast[] }) {
   );
 }
 
+/** A button that needs a second tap to fire. Avoids native confirm() dialogs. */
+export function ConfirmButton({ className, label, confirmLabel, ariaLabel, onConfirm }: { className: string; label: ReactNode; confirmLabel: string; ariaLabel?: string; onConfirm: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <button
+      className={`${className}${armed ? ' armed' : ''}`}
+      aria-label={armed ? confirmLabel : ariaLabel}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : label}
+    </button>
+  );
+}
+
 export const EMOJIS = ['🏋️', '🏃', '🥗', '💧', '📖', '📸', '🚫', '😴', '🧘', '🤸', '🧊', '📵', '🍬', '👟', '✅', '💊', '🚴', '🏊', '🥩', '☕', '✍️', '🎯', '🧠', '🔥'];
 
 const iconProps = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', viewBox: '0 0 24 24' } as const;

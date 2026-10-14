@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sheet, EMOJIS } from '../components/ui';
+import { ConfirmButton, EMOJIS, Sheet } from '../components/ui';
 import {
   addTasks,
   editTask,
@@ -52,15 +52,13 @@ export function Settings({ ch, me, today, onShare, onSwitch, onLeave }: Props) {
           </div>
           <div className="small muted">
             You’re signed in as <strong style={{ color: 'var(--text)' }}>{ch.players[me].name}</strong>.
-            {!isSyncConfigured && ' In demo mode you can switch players to try both sides on one phone.'}
+            {!isSyncConfigured && ' In demo mode you can switch players to try both sides on one phone.'} If you leave, you can rejoin any time with the code.
           </div>
           <div className="row wrap">
             <button className="btn sm" onClick={() => onSwitch(other(me))}>
               I’m actually {ch.players[other(me)].name}
             </button>
-            <button className="btn sm danger" onClick={() => confirm('Leave this challenge on this device? You can rejoin with the code.') && onLeave()}>
-              Leave on this device
-            </button>
+            <ConfirmButton className="btn sm danger" label="Leave on this device" confirmLabel="Tap again to leave" onConfirm={onLeave} />
           </div>
         </div>
       </section>

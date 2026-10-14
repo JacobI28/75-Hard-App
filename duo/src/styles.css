@@ -1264,3 +1264,22 @@ button.task:hover {
     transition: none !important;
   }
 }
+
+.armed {
+  color: var(--bad) !important;
+  border-color: var(--bad) !important;
+}
+
+.icon-btn.armed {
+  width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.link {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

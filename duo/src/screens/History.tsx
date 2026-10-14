@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ConfirmButton } from '../components/ui';
 import { deletePayment } from '../lib/actions';
 import { addDays, diffDays, formatDay } from '../lib/dates';
 import { CHALLENGE_DAYS, money, other, type DayResult, type PlayerSummary } from '../lib/logic';
@@ -145,13 +146,7 @@ function Ledger({ ch, summaries }: { ch: Challenge; summaries: Record<PlayerId, 
                     </div>
                   </div>
                   <div className="amt plus">−{money(e.amount, ch.currency)}</div>
-                  <button
-                    className="icon-btn"
-                    aria-label="Delete payment"
-                    onClick={() => confirm('Delete this payment?') && deletePayment(ch, e.id)}
-                  >
-                    ✕
-                  </button>
+                  <ConfirmButton className="icon-btn" label="✕" ariaLabel="Delete payment" confirmLabel="Delete?" onConfirm={() => deletePayment(ch, e.id)} />
                 </li>
               ),
             )}

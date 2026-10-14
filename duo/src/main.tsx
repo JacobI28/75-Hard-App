@@ -9,6 +9,12 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+if (import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    try {
+      navigator.serviceWorker?.register('./sw.js').catch(() => {});
+    } catch {
+      /* service workers unavailable (e.g. sandboxed preview) */
+    }
+  });
 }

@@ -1,3 +1,4 @@
+import { addDays, dateKey } from './dates';
 import { editableTasks, effectiveDate, newCode, newId } from './logic';
 import { DELETE, getBackend, type Change } from './store';
 import type { Challenge, Mode, PlayerId, Task } from './types';
@@ -134,3 +135,43 @@ export const STANDARD_TASKS = [
   { title: 'Read 10 pages of non-fiction', emoji: '📖' },
   { title: 'Take a progress photo', emoji: '📸' },
 ];
+
+/** Demo mode only: a challenge 12 days in, with a few misses and a payment, to show every screen. */
+export async function createSampleChallenge(): Promise<Challenge> {
+  const today = dateKey();
+  const start = addDays(today, -12);
+  const mk = (list: [string, string][]) =>
+    Object.fromEntries(
+      list.map(([title, emoji], i) => {
+        const id = newId() + i;
+        return [id, { id, title, emoji, order: i + 1, addedOn: start, removedOn: null } satisfies Task];
+      }),
+    );
+  const tasks = {
+    p1: mk(STANDARD_TASKS.map((t) => [t.title, t.emoji])),
+    p2: mk([['Gym session', '🏋️'], ['Run 5k outside', '🏃'], ['3L water', '💧'], ['Read 10 pages', '📖'], ['No sugar', '🍬']]),
+  };
+  const ids = { p1: Object.keys(tasks.p1), p2: Object.keys(tasks.p2) };
+  const done: Challenge['done'] = { p1: {}, p2: {} };
+  for (let n = 12; n >= 1; n--) {
+    const d = addDays(today, -n);
+    done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 9 && i === 3)).map((id) => [id, 1]));
+    done.p2[d] = Object.fromEntries(ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4))).map((id) => [id, 1]));
+  }
+  done.p1[today] = { [ids.p1[0]]: 1, [ids.p1[2]]: 1 };
+  done.p2[today] = { [ids.p2[0]]: 1, [ids.p2[2]]: 1, [ids.p2[3]]: 1 };
+  const payId = newId();
+  const ch: Challenge = {
+    code: newCode(),
+    createdAt: Date.now(),
+    startDate: start,
+    currency: '£',
+    players: { p1: { name: 'Jacob', joined: true }, p2: { name: 'Brother', joined: true } },
+    rules: { [start]: { mode: 'traditional', penalty: 10 } },
+    tasks,
+    done,
+    payments: { [payId]: { id: payId, from: 'p2', to: 'p1', amount: 10, at: Date.now() - 4 * 86_400_000, note: 'Bank transfer' } },
+  };
+  await (await getBackend()).create(ch);
+  return ch;
+}

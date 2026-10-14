@@ -108,14 +108,19 @@ function Dashboard({
     url.search = `?join=${ch.code}`;
     url.hash = '';
     const text = `Join my 75 Hard challenge! Code: ${prettyCode(ch.code)}`;
-    try {
-      if (navigator.share) await navigator.share({ title: '75 Hard Duo', text, url: url.toString() });
-      else {
+    const copy = async () => {
+      try {
         await navigator.clipboard.writeText(`${text}\n${url}`);
-        push({ pid: me, name: ch.players[me].name, text: 'Invite link copied to clipboard' });
+        push({ pid: me, name: ch.players[me].name, text: 'Invite link copied' });
+      } catch {
+        push({ pid: me, name: ch.players[me].name, text: `Your code is ${prettyCode(ch.code)}` });
       }
-    } catch {
-      /* share sheet dismissed */
+    };
+    if (!navigator.share) return copy();
+    try {
+      await navigator.share({ title: '75 Hard Duo', text, url: url.toString() });
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') await copy();
     }
   };
 

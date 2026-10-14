@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createChallenge, fetchChallenge, markJoined } from '../lib/actions';
+import { createChallenge, createSampleChallenge, fetchChallenge, markJoined } from '../lib/actions';
 import { dateKey } from '../lib/dates';
 import { normalizeCode, prettyCode } from '../lib/logic';
 import { isSyncConfigured, type Session } from '../lib/store';
@@ -53,7 +53,18 @@ export function Welcome({ joinCode, onReady }: { joinCode: string | null; onRead
           {!isSyncConfigured && (
             <div className="banner warn small" style={{ marginTop: 22 }}>
               <span>⚠️</span>
-              <span className="grow">Demo mode: sync isn’t set up yet, so data stays on this device. See the README to switch on live sync.</span>
+              <span className="grow">
+                Demo mode: sync isn’t set up yet, so data stays on this device.{' '}
+                <button
+                  className="link"
+                  onClick={async () => {
+                    const ch = await createSampleChallenge();
+                    onReady({ code: ch.code, me: 'p1' });
+                  }}
+                >
+                  Explore with sample data
+                </button>
+              </span>
             </div>
           )}
         </>
