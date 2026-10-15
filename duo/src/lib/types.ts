@@ -30,6 +30,14 @@ export interface Payment {
   note?: string;
 }
 
+export interface Nudge {
+  id: string;
+  from: PlayerId;
+  to: PlayerId;
+  text: string;
+  at: number;
+}
+
 export interface Player {
   name: string;
   joined: boolean;
@@ -52,4 +60,8 @@ export interface Challenge {
   /** done[player][date][taskId] = timestamp it was ticked. */
   done: Record<PlayerId, Record<string, Record<string, number>>>;
   payments: Record<string, Payment>;
+  /** notes[player][date][taskId] = what you wrote when ticking it off. */
+  notes?: Record<PlayerId, Record<string, Record<string, string>>>;
+  /** Recent nudges between the two players (pruned after a few days). */
+  nudges?: Record<string, Nudge>;
 }

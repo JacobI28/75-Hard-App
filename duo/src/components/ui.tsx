@@ -68,6 +68,7 @@ export interface Toast {
   pid: PlayerId;
   name: string;
   text: string;
+  kind?: 'nudge';
 }
 
 export function useToasts() {
@@ -76,7 +77,7 @@ export function useToasts() {
   const push = useCallback((t: Omit<Toast, 'id'>) => {
     const id = nextId.current++;
     setToasts((ts) => [...ts.slice(-2), { ...t, id }]);
-    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 3800);
+    setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), t.kind === 'nudge' ? 6000 : 3800);
   }, []);
   return { toasts, push };
 }
@@ -85,7 +86,7 @@ export function Toasts({ toasts }: { toasts: Toast[] }) {
   return (
     <div className="toasts" aria-live="polite">
       {toasts.map((t) => (
-        <div key={t.id} className={`toast ${t.pid}`}>
+        <div key={t.id} className={`toast ${t.pid}${t.kind ? ` ${t.kind}` : ''}`}>
           <Avatar name={t.name} pid={t.pid} />
           <span>{t.text}</span>
         </div>

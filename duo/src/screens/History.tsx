@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ConfirmButton } from '../components/ui';
 import { deletePayment } from '../lib/actions';
-import { addDays, diffDays, formatDay } from '../lib/dates';
+import { addDays, formatDay } from '../lib/dates';
 import { CHALLENGE_DAYS, money, other, type DayResult, type PlayerSummary } from '../lib/logic';
-import type { Challenge, PlayerId } from '../lib/types';
+import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
   ch: Challenge;
@@ -23,34 +23,69 @@ export function History({ ch, me, today, summaries }: Props) {
   );
 }
 
+interface Attempt {
+  start: string;
+  end: string;
+  length: number;
+}
+
+/** Earlier runs that ended in a restart (traditional mode). */
+function pastAttempts(s: PlayerSummary): Attempt[] {
+  const out: Attempt[] = [];
+  for (const d of s.days) {
+    if (d.dayNumber === 1) out.push({ start: d.date, end: d.date, length: 0 });
+    const cur = out[out.length - 1];
+    if (cur) {
+      cur.end = d.date;
+      cur.length = d.dayNumber;
+    }
+  }
+  // The last group is the current run unless it ended in a restart.
+  return out.filter((a) => a.start < s.attemptStart);
+}
+
 function PlayerGrid({ ch, pid, today, s }: { ch: Challenge; pid: PlayerId; today: string; s: PlayerSummary }) {
   const [selected, setSelected] = useState<string | null>(null);
   const byDate = new Map(s.days.map((d) => [d.date, d]));
-  const elapsed = diffDays(today, ch.startDate) + 1;
-  // Calendar days from the start until this player is due to finish (longer after restarts).
-  const projected = s.finishedOn ? s.days.length : Math.max(0, elapsed) + CHALLENGE_DAYS - s.dayNumber;
-  const total = Math.max(CHALLENGE_DAYS, projected);
-  const cells = Array.from({ length: total }, (_, i) => addDays(ch.startDate, i));
-  const sel = selected ? byDate.get(selected) : undefined;
-  const perfect = s.days.filter((d) => d.perfect).length;
+  if (s.grace) byDate.set(s.grace.date, s.grace);
+  // Always show the current run as days 1–75, so both grids have the same shape.
+  const cells = Array.from({ length: CHALLENGE_DAYS }, (_, i) => addDays(s.attemptStart, i));
+  const attempts = pastAttempts(s);
+  const perfect = s.days.filter((d) => d.perfect).length + (s.grace?.perfect ? 1 : 0);
 
   return (
     <section className={pid}>
       <h2 className="section-title">
         {ch.players[pid].name} · {perfect} perfect day{perfect === 1 ? '' : 's'}
       </h2>
-      <div className="card">
+      <div className="card stack">
+        {attempts.length > 0 && (
+          <div className="attempts">
+            {attempts.map((a, i) => (
+              <button key={a.start} className={`attempt${selected === a.end ? ' selected' : ''}`} onClick={() => setSelected(selected === a.end ? null : a.end)}>
+                <span>Run {i + 1}</span>
+                <strong>Day {a.length}</strong>
+                <span className="muted">ended {formatDay(a.end, { day: 'numeric', month: 'short' })}</span>
+              </button>
+            ))}
+            <div className="attempt current">
+              <span>Run {attempts.length + 1}</span>
+              <strong>Current</strong>
+              <span className="muted">from {formatDay(s.attemptStart, { day: 'numeric', month: 'short' })}</span>
+            </div>
+          </div>
+        )}
         <div className="grid75">
           {cells.map((date, i) => {
             const d = byDate.get(date);
             const isGrace = s.grace?.date === date;
-            const cls = d ? (d.perfect ? 'perfect' : 'failed') : isGrace ? (s.grace!.perfect ? 'perfect' : 'grace') : date === today ? 'today' : '';
+            const cls = d ? (d.perfect ? 'perfect' : isGrace ? 'pending' : 'failed') : date === today ? 'today' : '';
             return (
               <button
                 key={date}
                 className={`cell ${cls}${selected === date ? ' selected' : ''}`}
                 onClick={() => setSelected(selected === date ? null : date)}
-                aria-label={`${formatDay(date)}${d ? (d.perfect ? ', completed' : `, missed ${d.missed.length}`) : ''}`}
+                aria-label={`Day ${i + 1}, ${formatDay(date)}${d ? (d.perfect ? ', completed' : `, ${d.missed.length} not done`) : ''}`}
               >
                 {i + 1}
               </button>
@@ -71,16 +106,40 @@ function PlayerGrid({ ch, pid, today, s }: { ch: Challenge; pid: PlayerId; today
             <i style={{ boxShadow: 'inset 0 0 0 2px var(--text)' }} /> Today
           </span>
         </div>
-        {selected && <DayDetail date={selected} day={sel ?? (s.grace?.date === selected ? s.grace : undefined)} ch={ch} today={today} />}
+        {selected && (
+          <DayDetail
+            date={selected}
+            day={byDate.get(selected) ?? s.days.find((d) => d.date === selected)}
+            notes={ch.notes?.[pid]?.[selected]}
+            tasks={ch.tasks?.[pid]}
+            ch={ch}
+            today={today}
+          />
+        )}
       </div>
     </section>
   );
 }
 
-function DayDetail({ date, day, ch, today }: { date: string; day?: DayResult; ch: Challenge; today: string }) {
+function DayDetail({
+  date,
+  day,
+  notes,
+  tasks,
+  ch,
+  today,
+}: {
+  date: string;
+  day?: DayResult;
+  notes?: Record<string, string>;
+  tasks?: Record<string, Task>;
+  ch: Challenge;
+  today: string;
+}) {
   const inGrace = date === addDays(today, -1);
+  const noteList = Object.entries(notes ?? {}).filter(([id]) => tasks?.[id]);
   return (
-    <div className="banner" style={{ marginTop: 14, display: 'block' }}>
+    <div className="banner" style={{ display: 'block' }}>
       <strong>{formatDay(date, { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
       {!day ? (
         <div className="muted small">{date === today ? 'Today, still in progress.' : date > today ? 'Not reached yet.' : 'Not counted.'}</div>
@@ -105,6 +164,18 @@ function DayDetail({ date, day, ch, today }: { date: string; day?: DayResult; ch
             {inGrace ? 'Still to tick' : 'Missed'}: {day.missed.map((t) => `${t.emoji} ${t.title}`).join(', ')}
           </div>
         </div>
+      )}
+      {noteList.length > 0 && (
+        <ul className="day-notes">
+          {noteList.map(([id, text]) => (
+            <li key={id}>
+              <span aria-hidden>{tasks![id].emoji}</span>
+              <span>
+                <strong>{tasks![id].title}</strong> “{text}”
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

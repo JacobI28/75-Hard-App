@@ -14,6 +14,9 @@ This is a standalone web app in its own folder. It doesn't touch the Expo app in
   - **Traditional:** miss any task and you go back to day 1, *and* you owe the penalty for every task you missed.
   - **Forgiving:** you owe the penalty per missed task, but you keep your day count. The challenge ends after 75 days.
 - **Adjustable penalty:** £10 per missed task by default.
+- **Nudges:** tap 👊 Nudge on your partner's card to send a preset or custom message. It pops up on their screen straight away if the app is open, or the next time they open it.
+- **Notes:** after ticking a task, tap ✎ to add a note (e.g. "Bench PB 100kg"). Your partner sees it under the task, gets a pop-up, and it shows up in History.
+- **Celebrations:** confetti when you finish the day, and a full-screen moment at 7, 14, 21, 30, 40, 50, 60 and 75-day streaks.
 - **Settle up:** record payments. The headline figure nets both people's penalties and payments into one "X owes Y" number.
 - **History:** a day-by-day grid for each person, plus a ledger of every missed day and payment.
 - **Fair-play locks:** once day 1 has passed, task and rule changes only apply from tomorrow, so nobody can delete a task to get out of it. Past days are never recalculated.

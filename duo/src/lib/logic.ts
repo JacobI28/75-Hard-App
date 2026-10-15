@@ -3,6 +3,9 @@ import type { Challenge, Mode, Payment, PlayerId, Rule, Task } from './types';
 
 export const CHALLENGE_DAYS = 75;
 
+/** Streak lengths that get a full-screen celebration. */
+export const MILESTONES = [7, 14, 21, 30, 40, 50, 60, 75];
+
 export const other = (p: PlayerId): PlayerId => (p === 'p1' ? 'p2' : 'p1');
 
 export function ruleFor(rules: Record<string, Rule>, date: string): Rule {

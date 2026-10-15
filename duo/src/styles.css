@@ -930,13 +930,17 @@ button.task:hover {
 
 .grid75 {
   display: grid;
-  grid-template-columns: repeat(15, 1fr);
+  grid-template-columns: repeat(15, minmax(0, 1fr));
   gap: 4px;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .grid75 {
-    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+  }
+  .cell {
+    font-size: 8.5px !important;
+    border-radius: 4px !important;
   }
 }
 
@@ -1327,7 +1331,204 @@ button.task:hover {
   color: var(--muted);
 }
 
-.cell.grace {
+.cell.pending {
   box-shadow: inset 0 0 0 1.5px var(--gold);
   color: var(--gold);
+}
+
+/* ---------- History runs ---------- */
+
+.attempts {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.attempt {
+  display: grid;
+  gap: 1px;
+  flex: none;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bad-soft);
+  border: 1px solid rgba(255, 77, 94, 0.3);
+  text-align: left;
+  font-size: 11.5px;
+}
+
+.attempt strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.attempt.current {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.attempt.selected {
+  outline: 2px solid var(--gold);
+}
+
+.day-notes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.day-notes li {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- Notes on tasks ---------- */
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.task-row > .task {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.task-note {
+  font-size: 13px;
+  font-weight: 500;
+  font-style: italic;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.note-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin-right: 4px;
+  border-radius: 10px;
+  color: var(--faint);
+  font-size: 17px;
+}
+
+.note-btn:hover,
+.note-btn.has-note {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.textarea {
+  min-height: 96px;
+  padding: 12px 14px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+/* ---------- Nudges ---------- */
+
+.nudge-btn {
+  flex: none;
+  white-space: nowrap;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.nudge-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toast.nudge {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 10px 30px rgba(0, 0, 0, 0.45);
+  animation: drop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), shake 0.5s 0.3s ease;
+}
+
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+/* ---------- Celebrations ---------- */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.backdrop.celebrate {
+  align-items: center;
+  padding: 16px;
+  z-index: 55;
+}
+
+.celebrate-card {
+  width: min(100%, 380px);
+  padding: 30px 22px 22px;
+  border-radius: 28px;
+  text-align: center;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 106, 43, 0.25), transparent 70%),
+    var(--surface);
+  border: 1px solid var(--border-strong);
+  animation: bounce-in 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.celebrate-card h2 {
+  margin: 8px 0 6px;
+  font-size: 34px;
+  font-weight: 900;
+  font-stretch: 80%;
+  letter-spacing: -0.02em;
+}
+
+.celebrate-card p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.celebrate-emoji {
+  font-size: 72px;
+  line-height: 1;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes bounce-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.12);
+  }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Avatar, CheckIcon, ProgressRing } from '../components/ui';
-import { formatDay } from '../lib/dates';
+import { dateKey, formatDay } from '../lib/dates';
 import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type PlayerSummary } from '../lib/logic';
 import type { Challenge, PlayerId, Task } from '../lib/types';
 
@@ -10,12 +10,14 @@ interface Props {
   summaries: Record<PlayerId, PlayerSummary>;
   bal: Balance;
   onToggle: (date: string | null, taskId: string, done: boolean) => void;
+  onNote: (date: string | null, taskId: string) => void;
+  onNudge: () => void;
   onSettle: () => void;
   onShare: () => void;
   onEditTasks: () => void;
 }
 
-export function Today({ ch, me, summaries, bal, onToggle, onSettle, onShare, onEditTasks }: Props) {
+export function Today({ ch, me, summaries, bal, onToggle, onNote, onNudge, onSettle, onShare, onEditTasks }: Props) {
   const order: PlayerId[] = [me, other(me)];
   return (
     <>
@@ -29,6 +31,8 @@ export function Today({ ch, me, summaries, bal, onToggle, onSettle, onShare, onE
             isMe={pid === me}
             s={summaries[pid]}
             onToggle={onToggle}
+            onNote={onNote}
+            onNudge={onNudge}
             onShare={onShare}
             onEditTasks={onEditTasks}
           />
@@ -88,17 +92,21 @@ interface CardProps {
   isMe: boolean;
   s: PlayerSummary;
   onToggle: (date: string | null, taskId: string, done: boolean) => void;
+  onNote: (date: string | null, taskId: string) => void;
+  onNudge: () => void;
   onShare: () => void;
   onEditTasks: () => void;
 }
 
-function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardProps) {
+function PlayerCard({ ch, pid, isMe, s, onToggle, onNote, onNudge, onShare, onEditTasks }: CardProps) {
   const player = ch.players[pid];
   const doneCount = s.todayTasks.filter((t) => s.todayDone[t.id]).length;
   const traditional = s.todayRule.mode === 'traditional';
   const progress = ((s.dayNumber - 1 + (s.todayComplete ? 1 : 0)) / CHALLENGE_DAYS) * 100;
   const canTick = isMe && s.started && !s.finishedOn;
   const graceOpen = s.grace && !s.grace.perfect ? s.grace : null;
+  const todayKey = dateKey();
+  const showFoot = s.started && s.todayInChallenge && s.todayTasks.length > 0;
 
   const sub = !player.joined
     ? 'Hasn’t joined yet'
@@ -178,8 +186,10 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
               <TaskList
                 tasks={graceOpen.tasks}
                 done={graceOpen.done}
+                notes={ch.notes?.[pid]?.[graceOpen.date]}
                 canTick={canTick}
                 onToggle={(id, d) => onToggle(graceOpen.date, id, d)}
+                onNote={(id) => onNote(graceOpen.date, id)}
               />
             </div>
           )}
@@ -206,21 +216,37 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
           ) : (
             <>
               {graceOpen && <div className="list-label">Today</div>}
-              <TaskList tasks={s.todayTasks} done={s.todayDone} canTick={canTick} onToggle={(id, d) => onToggle(null, id, d)} />
+              <TaskList
+                tasks={s.todayTasks}
+                done={s.todayDone}
+                notes={ch.notes?.[pid]?.[todayKey]}
+                canTick={canTick}
+                onToggle={(id, d) => onToggle(null, id, d)}
+                onNote={(id) => onNote(null, id)}
+              />
             </>
           )}
         </>
       )}
 
-      {s.started && s.todayInChallenge && s.todayTasks.length > 0 && (
+      {(showFoot || (!isMe && player.joined && !s.finishedOn)) && (
         <div className="player-foot">
-          {s.todayComplete ? (
-            <span className="safe">All done for today ✓</span>
+          {showFoot ? (
+            s.todayComplete ? (
+              <span className="safe">All done for today ✓</span>
+            ) : (
+              <span>
+                <span className="risk">{money(s.atRisk, ch.currency)} at stake</span>
+                {traditional && ' + back to day 1'} if not ticked by midnight tomorrow
+              </span>
+            )
           ) : (
-            <span>
-              <span className="risk">{money(s.atRisk, ch.currency)} at stake</span>
-              {traditional && ' + back to day 1'} if not ticked by midnight tomorrow
-            </span>
+            <span />
+          )}
+          {!isMe && player.joined && !s.finishedOn && (
+            <button className="btn sm nudge-btn" onClick={onNudge}>
+              👊 Nudge
+            </button>
           )}
         </div>
       )}
@@ -231,13 +257,17 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
 function TaskList({
   tasks,
   done: doneMap,
+  notes,
   canTick,
   onToggle,
+  onNote,
 }: {
   tasks: Task[];
   done: Record<string, number>;
+  notes?: Record<string, string>;
   canTick: boolean;
   onToggle: (taskId: string, done: boolean) => void;
+  onNote: (taskId: string) => void;
 }) {
   const [popped, setPopped] = useState<string | null>(null);
   return (
@@ -250,14 +280,17 @@ function TaskList({
             <span className="task-emoji" aria-hidden>
               {t.emoji}
             </span>
-            <span className="task-title">{t.title}</span>
+            <span className="task-text">
+              <span className="task-title">{t.title}</span>
+              {notes?.[t.id] && <span className="task-note">“{notes[t.id]}”</span>}
+            </span>
             <span className="check">
               <CheckIcon />
             </span>
           </>
         );
         return (
-          <li key={t.id}>
+          <li key={t.id} className="task-row">
             {canTick ? (
               <button
                 className={cls}
@@ -277,6 +310,16 @@ function TaskList({
               <div className={cls} role="checkbox" aria-checked={done} aria-readonly>
                 {inner}
               </div>
+            )}
+            {canTick && (
+              <button
+                className={`note-btn${notes?.[t.id] ? ' has-note' : ''}`}
+                onClick={() => onNote(t.id)}
+                aria-label={notes?.[t.id] ? `Edit note for ${t.title}` : `Add a note to ${t.title}`}
+                style={{ visibility: done || notes?.[t.id] ? 'visible' : 'hidden' }}
+              >
+                ✎
+              </button>
             )}
           </li>
         );

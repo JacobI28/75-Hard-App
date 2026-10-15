@@ -1,7 +1,7 @@
 import { addDays, dateKey } from './dates';
 import { editableTasks, effectiveDate, newCode, newId } from './logic';
 import { DELETE, getBackend, type Change } from './store';
-import type { Challenge, Mode, PlayerId, Task } from './types';
+import type { Challenge, Mode, Nudge, PlayerId, Task } from './types';
 
 async function update(code: string, ...changes: Change[]) {
   const b = await getBackend();
@@ -155,11 +155,16 @@ export async function createSampleChallenge(): Promise<Challenge> {
   const done: Challenge['done'] = { p1: {}, p2: {} };
   for (let n = 12; n >= 1; n--) {
     const d = addDays(today, -n);
-    done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 9 && i === 3)).map((id) => [id, 1]));
+    done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 7 && i === 3)).map((id) => [id, 1]));
     done.p2[d] = Object.fromEntries(ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4) || (n === 1 && i === 1))).map((id) => [id, 1]));
   }
   done.p1[today] = { [ids.p1[0]]: 1, [ids.p1[2]]: 1 };
   done.p2[today] = { [ids.p2[0]]: 1, [ids.p2[2]]: 1, [ids.p2[3]]: 1 };
+  const notes: Challenge['notes'] = {
+    p1: { [addDays(today, -1)]: { [ids.p1[4]]: 'Finished Atomic Habits 📚' } },
+    p2: { [today]: { [ids.p2[0]]: 'Chest day. Bench PB 100kg 💪' } },
+  };
+  const nudgeId = newId();
   const payId = newId();
   const ch: Challenge = {
     code: newCode(),
@@ -170,8 +175,36 @@ export async function createSampleChallenge(): Promise<Challenge> {
     rules: { [start]: { mode: 'traditional', penalty: 10 } },
     tasks,
     done,
+    notes,
+    nudges: { [nudgeId]: { id: nudgeId, from: 'p2', to: 'p1', text: '💷 I can smell that tenner', at: Date.now() - 40 * 60_000 } },
     payments: { [payId]: { id: payId, from: 'p2', to: 'p1', amount: 10, at: Date.now() - 4 * 86_400_000, note: 'Bank transfer' } },
   };
   await (await getBackend()).create(ch);
   return ch;
+}
+
+export function setNote(ch: Challenge, pid: PlayerId, date: string, taskId: string, text: string) {
+  const t = text.trim();
+  return update(ch.code, [['notes', pid, date, taskId], t ? t : DELETE]);
+}
+
+export const NUDGE_PRESETS = [
+  '⏰ Clock’s ticking, mate',
+  '💧 Drink your water',
+  '🏋️ Get that workout in',
+  '📖 10 pages. Go.',
+  '💷 I can smell that tenner',
+  '🔥 Don’t break the streak',
+];
+
+const NUDGE_TTL = 3 * 86_400_000;
+
+export function sendNudge(ch: Challenge, from: PlayerId, text: string) {
+  const id = newId();
+  const nudge: Nudge = { id, from, to: from === 'p1' ? 'p2' : 'p1', text: text.trim(), at: Date.now() };
+  // Keep the shared document small: clear out nudges older than a few days.
+  const stale: Change[] = Object.values(ch.nudges ?? {})
+    .filter((n) => Date.now() - n.at > NUDGE_TTL)
+    .map((n) => [['nudges', n.id], DELETE]);
+  return update(ch.code, [['nudges', id], nudge], ...stale);
 }
