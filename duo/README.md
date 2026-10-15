@@ -40,7 +40,7 @@ Until you do this, the app runs in **demo mode**: everything stays on one device
 
 1. On GitHub, open the repo's **Settings → Pages** and set **Source** to **GitHub Actions**.
 2. Push any change under `duo/` (or run the *Deploy 75 Hard Duo* workflow by hand from the **Actions** tab).
-3. The app goes live at `https://<your-username>.github.io/75-Hard-App/`.
+3. The app goes live at <https://jacobi28.github.io/75-Hard-App/>.
 
 ### 3. Install it on both phones
 
