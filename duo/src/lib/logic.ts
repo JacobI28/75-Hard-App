@@ -49,21 +49,32 @@ export interface DayResult {
   perfect: boolean;
 }
 
+/** Yesterday, while it can still be ticked off (until midnight tonight). */
+export interface GraceDay extends DayResult {
+  done: Record<string, number>;
+}
+
 export interface PlayerSummary {
   started: boolean;
   daysUntilStart: number;
   attemptStart: string;
   /** Today's day number in the current attempt (1–75). */
   dayNumber: number;
-  /** Consecutive perfect finished days. */
+  /** Consecutive perfect days that are locked in. */
   streak: number;
+  /** Streak including yesterday and today once they're complete. */
+  liveStreak: number;
   bestStreak: number;
   resets: number;
   missedTasks: number;
-  /** Total penalties accrued (before payments). */
+  /** Total penalties accrued on locked-in days (before payments). */
   debt: number;
   finishedOn: string | null;
+  /** Days that are locked in: everything up to the day before yesterday. */
   days: DayResult[];
+  grace: GraceDay | null;
+  /** False once day 75 is behind you (and only yesterday's grace period is left). */
+  todayInChallenge: boolean;
   todayTasks: Task[];
   todayDone: Record<string, number>;
   todayComplete: boolean;
@@ -72,9 +83,31 @@ export interface PlayerSummary {
   todayRule: Rule;
 }
 
+function evaluateDay(ch: Challenge, pid: PlayerId, date: string, attemptStart: string): DayResult & { done: Record<string, number> } {
+  const tasks = activeTasks(ch.tasks?.[pid], date);
+  const done = ch.done?.[pid]?.[date] ?? {};
+  const missed = tasks.filter((t) => !done[t.id]);
+  const rule = ruleFor(ch.rules, date);
+  return {
+    date,
+    dayNumber: diffDays(date, attemptStart) + 1,
+    tasks,
+    missed,
+    penalty: missed.length * rule.penalty,
+    mode: rule.mode,
+    perfect: missed.length === 0,
+    done,
+  };
+}
+
+/**
+ * Each day stays open for a 24-hour grace period: yesterday's tasks can be ticked
+ * until midnight tonight, so a day only locks in (and charges) the day after tomorrow.
+ */
 export function summarize(ch: Challenge, pid: PlayerId, today: string): PlayerSummary {
   const start = ch.startDate;
   const yesterday = addDays(today, -1);
+  const lastLocked = addDays(today, -2);
   let attemptStart = start;
   let streak = 0;
   let bestStreak = 0;
@@ -84,27 +117,14 @@ export function summarize(ch: Challenge, pid: PlayerId, today: string): PlayerSu
   let finishedOn: string | null = null;
   const days: DayResult[] = [];
 
-  for (let d = start; d <= yesterday && !finishedOn; d = addDays(d, 1)) {
-    const tasks = activeTasks(ch.tasks?.[pid], d);
-    const doneMap = ch.done?.[pid]?.[d] ?? {};
-    const missed = tasks.filter((t) => !doneMap[t.id]);
-    const rule = ruleFor(ch.rules, d);
-    const penalty = missed.length * rule.penalty;
-    days.push({
-      date: d,
-      dayNumber: diffDays(d, attemptStart) + 1,
-      tasks,
-      missed,
-      penalty,
-      mode: rule.mode,
-      perfect: missed.length === 0,
-    });
-
-    if (missed.length) {
-      debt += penalty;
-      missedTasks += missed.length;
+  for (let d = start; d <= lastLocked && !finishedOn; d = addDays(d, 1)) {
+    const { done: _done, ...day } = evaluateDay(ch, pid, d, attemptStart);
+    days.push(day);
+    if (!day.perfect) {
+      debt += day.penalty;
+      missedTasks += day.missed.length;
       streak = 0;
-      if (rule.mode === 'traditional') {
+      if (day.mode === 'traditional') {
         attemptStart = addDays(d, 1);
         resets++;
       }
@@ -115,27 +135,39 @@ export function summarize(ch: Challenge, pid: PlayerId, today: string): PlayerSu
     if (diffDays(d, attemptStart) + 1 >= CHALLENGE_DAYS) finishedOn = d;
   }
 
-  const todayTasks = activeTasks(ch.tasks?.[pid], today);
+  const grace = !finishedOn && yesterday >= start ? evaluateDay(ch, pid, yesterday, attemptStart) : null;
+  const todayRaw = diffDays(today, attemptStart) + 1;
+  // Past day 75 there's nothing to do today, unless failing yesterday would restart you (traditional).
+  const todayInChallenge =
+    today >= start && !finishedOn && (todayRaw <= CHALLENGE_DAYS || Boolean(grace && !grace.perfect && grace.mode === 'traditional'));
+
+  const todayTasks = todayInChallenge ? activeTasks(ch.tasks?.[pid], today) : [];
   const todayDone = ch.done?.[pid]?.[today] ?? {};
   const remaining = todayTasks.filter((t) => !todayDone[t.id]).length;
   const todayRule = ruleFor(ch.rules, today);
+  const todayComplete = todayTasks.length > 0 && remaining === 0;
+  const graceOk = !grace || grace.perfect;
+  const liveStreak = streak + (grace?.perfect ? 1 : 0) + (todayComplete && graceOk ? 1 : 0);
 
   return {
     started: today >= start,
     daysUntilStart: Math.max(0, diffDays(start, today)),
     attemptStart,
-    dayNumber: Math.min(CHALLENGE_DAYS, Math.max(1, diffDays(today, attemptStart) + 1)),
+    dayNumber: Math.min(CHALLENGE_DAYS, Math.max(1, todayRaw)),
     streak,
-    bestStreak,
+    liveStreak,
+    bestStreak: Math.max(bestStreak, liveStreak),
     resets,
     missedTasks,
     debt,
     finishedOn,
     days,
+    grace,
+    todayInChallenge,
     todayTasks,
     todayDone,
-    todayComplete: todayTasks.length > 0 && remaining === 0,
-    atRisk: finishedOn || today < start ? 0 : remaining * todayRule.penalty,
+    todayComplete,
+    atRisk: todayInChallenge ? remaining * todayRule.penalty : 0,
     todayRule,
   };
 }

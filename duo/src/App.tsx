@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icons, Sheet, Toasts, useToasts } from './components/ui';
 import { recordPayment, toggleTask } from './lib/actions';
 import { useChallenge, useClock } from './lib/hooks';
+import { addDays } from './lib/dates';
 import { balance, money, other, prettyCode, summarize } from './lib/logic';
 import { isSyncConfigured, loadSession, saveSession, type Session } from './lib/store';
 import type { Challenge, PlayerId } from './lib/types';
@@ -176,7 +177,7 @@ function Dashboard({
             me={me}
             summaries={summaries}
             bal={bal}
-            onToggle={(taskId, done) => toggleTask(ch, me, today, taskId, done)}
+            onToggle={(date, taskId, done) => toggleTask(ch, me, date ?? today, taskId, done)}
             onSettle={() => setSettling(true)}
             onShare={share}
             onEditTasks={() => setTab('settings')}
@@ -218,21 +219,25 @@ function Dashboard({
 /** Pop a toast when the partner ticks something off (only for changes that arrive live). */
 function usePartnerToasts(ch: Challenge, me: PlayerId, today: string, push: ReturnType<typeof useToasts>['push']) {
   const partner = other(me);
-  const prev = useRef<Record<string, number> | null>(null);
-  const prevDay = useRef(today);
+  const yesterday = addDays(today, -1);
+  const prev = useRef<{ day: string; today: Record<string, number>; yesterday: Record<string, number> } | null>(null);
   useEffect(() => {
-    const now = ch.done?.[partner]?.[today] ?? {};
-    if (prev.current && prevDay.current === today) {
+    const now = { today: ch.done?.[partner]?.[today] ?? {}, yesterday: ch.done?.[partner]?.[yesterday] ?? {} };
+    const before = prev.current;
+    if (before && before.day === today) {
       const tasks = ch.tasks?.[partner] ?? {};
-      const added = Object.keys(now).filter((id) => !prev.current![id] && tasks[id]);
       const name = ch.players[partner].name;
       const s = summarize(ch, partner, today);
-      if (added.length && s.todayComplete) push({ pid: partner, name, text: `${name} smashed all of today’s tasks 🔥` });
-      else for (const id of added) push({ pid: partner, name, text: `${name} ticked off ${tasks[id].emoji} ${tasks[id].title}` });
+      const newly = (key: 'today' | 'yesterday') => Object.keys(now[key]).filter((id) => !before[key][id] && tasks[id]);
+      const addedToday = newly('today');
+      const addedLate = newly('yesterday');
+      if (addedToday.length && s.todayComplete) push({ pid: partner, name, text: `${name} smashed all of today’s tasks 🔥` });
+      else for (const id of addedToday) push({ pid: partner, name, text: `${name} ticked off ${tasks[id].emoji} ${tasks[id].title}` });
+      if (addedLate.length && s.grace?.perfect) push({ pid: partner, name, text: `${name} saved yesterday just in time 😅` });
+      else for (const id of addedLate) push({ pid: partner, name, text: `${name} ticked off yesterday’s ${tasks[id].emoji} ${tasks[id].title}` });
     }
-    prev.current = now;
-    prevDay.current = today;
-  }, [ch, partner, today, push]);
+    prev.current = { day: today, ...now };
+  }, [ch, partner, today, yesterday, push]);
 }
 
 function SettleSheet({ ch, debtor, amount, onClose }: { ch: Challenge; debtor: PlayerId | null; amount: number; onClose: () => void }) {

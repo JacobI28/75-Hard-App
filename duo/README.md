@@ -18,7 +18,8 @@ This is a standalone web app in its own folder. It doesn't touch the Expo app in
 - **History:** a day-by-day grid for each person, plus a ledger of every missed day and payment.
 - **Fair-play locks:** once day 1 has passed, task and rule changes only apply from tomorrow, so nobody can delete a task to get out of it. Past days are never recalculated.
 
-A day is judged at **midnight on the phone's local time**. Anything unticked by then counts as missed.
+**24-hour grace period:** forgot to tick something? Yesterday's tasks stay tickable until midnight tonight.
+A day only locks in (and charges, or resets you) once that grace period ends. Times use the phone's local clock.
 
 ## Setup (about 10 minutes, free)
 

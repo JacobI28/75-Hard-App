@@ -43,7 +43,8 @@ function PlayerGrid({ ch, pid, today, s }: { ch: Challenge; pid: PlayerId; today
         <div className="grid75">
           {cells.map((date, i) => {
             const d = byDate.get(date);
-            const cls = d ? (d.perfect ? 'perfect' : 'failed') : date === today ? 'today' : '';
+            const isGrace = s.grace?.date === date;
+            const cls = d ? (d.perfect ? 'perfect' : 'failed') : isGrace ? (s.grace!.perfect ? 'perfect' : 'grace') : date === today ? 'today' : '';
             return (
               <button
                 key={date}
@@ -64,21 +65,25 @@ function PlayerGrid({ ch, pid, today, s }: { ch: Challenge; pid: PlayerId; today
             <i style={{ background: 'var(--bad-soft)', boxShadow: 'inset 0 0 0 1.5px var(--bad)' }} /> Missed tasks
           </span>
           <span>
+            <i style={{ boxShadow: 'inset 0 0 0 1.5px var(--gold)' }} /> Can still be ticked
+          </span>
+          <span>
             <i style={{ boxShadow: 'inset 0 0 0 2px var(--text)' }} /> Today
           </span>
         </div>
-        {selected && <DayDetail date={selected} day={sel} ch={ch} today={today} />}
+        {selected && <DayDetail date={selected} day={sel ?? (s.grace?.date === selected ? s.grace : undefined)} ch={ch} today={today} />}
       </div>
     </section>
   );
 }
 
 function DayDetail({ date, day, ch, today }: { date: string; day?: DayResult; ch: Challenge; today: string }) {
+  const inGrace = date === addDays(today, -1);
   return (
     <div className="banner" style={{ marginTop: 14, display: 'block' }}>
       <strong>{formatDay(date, { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
       {!day ? (
-        <div className="muted small">{date === today ? 'Today — still in progress.' : date > today ? 'Not reached yet.' : 'Not counted.'}</div>
+        <div className="muted small">{date === today ? 'Today, still in progress.' : date > today ? 'Not reached yet.' : 'Not counted.'}</div>
       ) : day.perfect ? (
         <div className="small" style={{ color: 'var(--good)' }}>
           Day {day.dayNumber} · all {day.tasks.length} tasks done ✓
@@ -87,10 +92,18 @@ function DayDetail({ date, day, ch, today }: { date: string; day?: DayResult; ch
         <div className="small">
           <div className="muted">
             Day {day.dayNumber} · {day.tasks.length - day.missed.length}/{day.tasks.length} done ·{' '}
-            <span className="amt minus">−{money(day.penalty, ch.currency)}</span>
-            {day.mode === 'traditional' && ' · reset to day 1'}
+            {inGrace ? (
+              <span style={{ color: 'var(--gold)' }}>can still be ticked until midnight</span>
+            ) : (
+              <>
+                <span className="amt minus">−{money(day.penalty, ch.currency)}</span>
+                {day.mode === 'traditional' && ' · reset to day 1'}
+              </>
+            )}
           </div>
-          <div style={{ marginTop: 4 }}>Missed: {day.missed.map((t) => `${t.emoji} ${t.title}`).join(', ')}</div>
+          <div style={{ marginTop: 4 }}>
+            {inGrace ? 'Still to tick' : 'Missed'}: {day.missed.map((t) => `${t.emoji} ${t.title}`).join(', ')}
+          </div>
         </div>
       )}
     </div>

@@ -41,10 +41,11 @@ describe('dates', () => {
 describe('summarize', () => {
   it('counts a streak and days in traditional mode', () => {
     const ch = makeChallenge('traditional');
-    tickAll(ch, START, 5);
-    const s = summarize(ch, 'p1', addDays(START, 5));
-    expect(s.streak).toBe(5);
-    expect(s.dayNumber).toBe(6);
+    tickAll(ch, START, 6);
+    const s = summarize(ch, 'p1', addDays(START, 6));
+    expect(s.streak).toBe(5); // locked-in days
+    expect(s.liveStreak).toBe(6); // + yesterday, already complete
+    expect(s.dayNumber).toBe(7);
     expect(s.debt).toBe(0);
   });
 
@@ -52,11 +53,11 @@ describe('summarize', () => {
     const ch = makeChallenge('traditional');
     tickAll(ch, START, 3);
     ch.done.p1[addDays(START, 3)] = { a: 1 }; // missed b on day 4
-    tickAll(ch, addDays(START, 4), 2);
-    const s = summarize(ch, 'p1', addDays(START, 6));
+    tickAll(ch, addDays(START, 4), 3);
+    const s = summarize(ch, 'p1', addDays(START, 7));
     expect(s.resets).toBe(1);
     expect(s.debt).toBe(10);
-    expect(s.dayNumber).toBe(3);
+    expect(s.dayNumber).toBe(4);
     expect(s.streak).toBe(2);
     expect(s.bestStreak).toBe(3);
   });
@@ -65,9 +66,9 @@ describe('summarize', () => {
     const ch = makeChallenge('forgiving', 5);
     tickAll(ch, START, 3);
     // day 4 untouched: both tasks missed
-    const s = summarize(ch, 'p1', addDays(START, 4));
+    const s = summarize(ch, 'p1', addDays(START, 5));
     expect(s.resets).toBe(0);
-    expect(s.dayNumber).toBe(5);
+    expect(s.dayNumber).toBe(6);
     expect(s.debt).toBe(10);
     expect(s.missedTasks).toBe(2);
   });
@@ -82,8 +83,8 @@ describe('summarize', () => {
   it('applies rule changes only from their effective date', () => {
     const ch = makeChallenge('traditional', 10);
     ch.rules[addDays(START, 2)] = { mode: 'forgiving', penalty: 20 };
-    // miss everything for 4 days
-    const s = summarize(ch, 'p1', addDays(START, 4));
+    // miss everything for 4 days (day 5 is still in its grace period)
+    const s = summarize(ch, 'p1', addDays(START, 5));
     expect(s.resets).toBe(2);
     expect(s.debt).toBe(2 * 2 * 10 + 2 * 2 * 20);
     expect(ruleFor(ch.rules, START).penalty).toBe(10);
@@ -95,6 +96,7 @@ describe('summarize', () => {
     const s = summarize(ch, 'p1', START);
     expect(s.atRisk).toBe(10);
     expect(s.todayComplete).toBe(false);
+    expect(s.grace).toBeNull();
   });
 
   it('nothing is owed before the start date', () => {
@@ -104,6 +106,53 @@ describe('summarize', () => {
     expect(s.daysUntilStart).toBe(3);
     expect(s.debt).toBe(0);
     expect(s.atRisk).toBe(0);
+  });
+});
+
+describe('24-hour grace period', () => {
+  it("doesn't charge or reset for yesterday until it locks in", () => {
+    const ch = makeChallenge('traditional');
+    const s = summarize(ch, 'p1', addDays(START, 1));
+    expect(s.grace?.date).toBe(START);
+    expect(s.grace?.missed.map((t) => t.id)).toEqual(['a', 'b']);
+    expect(s.debt).toBe(0);
+    expect(s.resets).toBe(0);
+    expect(s.dayNumber).toBe(2);
+  });
+
+  it('counts yesterday once it is ticked late', () => {
+    const ch = makeChallenge('traditional');
+    tickAll(ch, START, 1);
+    const s = summarize(ch, 'p1', addDays(START, 1));
+    expect(s.grace?.perfect).toBe(true);
+    expect(s.liveStreak).toBe(1);
+    expect(summarize(ch, 'p1', addDays(START, 2)).streak).toBe(1);
+  });
+
+  it('charges once the grace period has passed', () => {
+    const ch = makeChallenge('traditional');
+    const s = summarize(ch, 'p1', addDays(START, 2));
+    expect(s.debt).toBe(20);
+    expect(s.resets).toBe(1);
+  });
+
+  it('day 75 stays open for its grace period before the challenge finishes', () => {
+    const ch = makeChallenge('forgiving');
+    tickAll(ch, START, 74);
+    const s = summarize(ch, 'p1', addDays(START, 75));
+    expect(s.finishedOn).toBeNull();
+    expect(s.grace?.dayNumber).toBe(75);
+    expect(s.todayInChallenge).toBe(false);
+    expect(s.todayTasks).toEqual([]);
+    expect(summarize(ch, 'p1', addDays(START, 76)).finishedOn).toBe(addDays(START, 74));
+  });
+
+  it('in traditional mode an unfinished day 75 keeps today live, since it could restart you', () => {
+    const ch = makeChallenge('traditional');
+    tickAll(ch, START, 74);
+    const s = summarize(ch, 'p1', addDays(START, 75));
+    expect(s.grace?.perfect).toBe(false);
+    expect(s.todayInChallenge).toBe(true);
   });
 });
 

@@ -156,7 +156,7 @@ export async function createSampleChallenge(): Promise<Challenge> {
   for (let n = 12; n >= 1; n--) {
     const d = addDays(today, -n);
     done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 9 && i === 3)).map((id) => [id, 1]));
-    done.p2[d] = Object.fromEntries(ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4))).map((id) => [id, 1]));
+    done.p2[d] = Object.fromEntries(ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4) || (n === 1 && i === 1))).map((id) => [id, 1]));
   }
   done.p1[today] = { [ids.p1[0]]: 1, [ids.p1[2]]: 1 };
   done.p2[today] = { [ids.p2[0]]: 1, [ids.p2[2]]: 1, [ids.p2[3]]: 1 };

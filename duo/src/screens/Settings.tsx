@@ -213,12 +213,14 @@ export function ModeHelp({ mode, penalty, currency }: { mode: Mode; penalty: num
   return mode === 'traditional' ? (
     <div className="mode-help">
       <strong>Traditional 75 Hard</strong>
-      Miss any task and you go back to day 1 — plus you owe {money(penalty, currency)} for every task missed.
+      Miss any task and you go back to day 1, plus you owe {money(penalty, currency)} for every task missed.
+      <span>Forgot to tick something? You have until midnight the next day.</span>
     </div>
   ) : (
     <div className="mode-help">
       <strong>Forgiving</strong>
       Miss a task and you owe {money(penalty, currency)} per task, but you keep your day count. The challenge ends after 75 days either way.
+      <span>Forgot to tick something? You have until midnight the next day.</span>
     </div>
   );
 }

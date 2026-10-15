@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Avatar, CheckIcon, ProgressRing } from '../components/ui';
 import { formatDay } from '../lib/dates';
 import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type PlayerSummary } from '../lib/logic';
-import type { Challenge, PlayerId } from '../lib/types';
+import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
   ch: Challenge;
   me: PlayerId;
   summaries: Record<PlayerId, PlayerSummary>;
   bal: Balance;
-  onToggle: (taskId: string, done: boolean) => void;
+  onToggle: (date: string | null, taskId: string, done: boolean) => void;
   onSettle: () => void;
   onShare: () => void;
   onEditTasks: () => void;
@@ -87,19 +87,18 @@ interface CardProps {
   pid: PlayerId;
   isMe: boolean;
   s: PlayerSummary;
-  onToggle: (taskId: string, done: boolean) => void;
+  onToggle: (date: string | null, taskId: string, done: boolean) => void;
   onShare: () => void;
   onEditTasks: () => void;
 }
 
 function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardProps) {
-  const [popped, setPopped] = useState<string | null>(null);
   const player = ch.players[pid];
   const doneCount = s.todayTasks.filter((t) => s.todayDone[t.id]).length;
   const traditional = s.todayRule.mode === 'traditional';
-  const streakNow = s.streak + (s.todayComplete ? 1 : 0);
   const progress = ((s.dayNumber - 1 + (s.todayComplete ? 1 : 0)) / CHALLENGE_DAYS) * 100;
   const canTick = isMe && s.started && !s.finishedOn;
+  const graceOpen = s.grace && !s.grace.perfect ? s.grace : null;
 
   const sub = !player.joined
     ? 'Hasn’t joined yet'
@@ -132,7 +131,7 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
           <div className="stat-label">Day</div>
         </div>
         <div className="stat">
-          <div className="stat-val">🔥{streakNow}</div>
+          <div className="stat-val">🔥{s.liveStreak}</div>
           <div className="stat-label">Streak</div>
         </div>
         <div className="stat">
@@ -150,7 +149,7 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
           <strong>75 days complete.</strong>
           <div className="muted small">Absolute machine.</div>
         </div>
-      ) : !player.joined && s.todayTasks.length === 0 ? (
+      ) : !player.joined && s.todayTasks.length === 0 && !graceOpen ? (
         <div className="empty">
           <p style={{ marginTop: 0 }}>Send {player.name} your challenge code so their phone joins this one.</p>
           <div className="code-display" style={{ marginBottom: 12 }}>
@@ -160,75 +159,128 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onShare, onEditTasks }: CardPr
             Share invite
           </button>
         </div>
-      ) : s.todayTasks.length === 0 ? (
-        <div className="empty">
-          {isMe ? (
-            <>
-              <p style={{ marginTop: 0 }}>You haven’t added any tasks yet.</p>
-              <button className="btn accent" onClick={onEditTasks}>
-                Add your tasks
-              </button>
-            </>
-          ) : (
-            <>No tasks set up yet.</>
-          )}
-        </div>
       ) : (
-        <ul className="tasks">
-          {s.todayTasks.map((t) => {
-            const done = Boolean(s.todayDone[t.id]);
-            const cls = `task${done ? ' is-done' : ''}${canTick ? '' : ' readonly'}${popped === t.id ? ' pop' : ''}`;
-            const inner = (
-              <>
-                <span className="task-emoji" aria-hidden>
-                  {t.emoji}
+        <>
+          {graceOpen && (
+            <div className="grace">
+              <div className="grace-head">
+                <span>
+                  <strong>Yesterday</strong> · {formatDay(graceOpen.date)}
                 </span>
-                <span className="task-title">{t.title}</span>
-                <span className="check">
-                  <CheckIcon />
+                <span className="risk">
+                  {graceOpen.missed.length} left · {money(graceOpen.penalty, ch.currency)}
+                  {graceOpen.mode === 'traditional' && ' + restart'}
                 </span>
-              </>
-            );
-            return (
-              <li key={t.id}>
-                {canTick ? (
-                  <button
-                    className={cls}
-                    role="checkbox"
-                    aria-checked={done}
-                    onClick={() => {
-                      if (!done) {
-                        setPopped(t.id);
-                        navigator.vibrate?.(12);
-                      }
-                      onToggle(t.id, !done);
-                    }}
-                  >
-                    {inner}
+              </div>
+              <div className="grace-note">
+                {isMe ? 'Forgot to tick something? You’ve got until midnight tonight.' : `${player.name} has until midnight tonight to tick these off.`}
+              </div>
+              <TaskList
+                tasks={graceOpen.tasks}
+                done={graceOpen.done}
+                canTick={canTick}
+                onToggle={(id, d) => onToggle(graceOpen.date, id, d)}
+              />
+            </div>
+          )}
+
+          {s.started && !s.todayInChallenge ? (
+            <div className="trophy">
+              <div className="big">🏁</div>
+              <strong>That was day 75.</strong>
+              <div className="muted small">{graceOpen ? 'Finish yesterday’s tasks to complete the challenge.' : 'It locks in at midnight.'}</div>
+            </div>
+          ) : s.todayTasks.length === 0 ? (
+            <div className="empty">
+              {isMe ? (
+                <>
+                  <p style={{ marginTop: 0 }}>You haven’t added any tasks yet.</p>
+                  <button className="btn accent" onClick={onEditTasks}>
+                    Add your tasks
                   </button>
-                ) : (
-                  <div className={cls} role="checkbox" aria-checked={done} aria-readonly>
-                    {inner}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                </>
+              ) : (
+                <>No tasks set up yet.</>
+              )}
+            </div>
+          ) : (
+            <>
+              {graceOpen && <div className="list-label">Today</div>}
+              <TaskList tasks={s.todayTasks} done={s.todayDone} canTick={canTick} onToggle={(id, d) => onToggle(null, id, d)} />
+            </>
+          )}
+        </>
       )}
 
-      {s.started && !s.finishedOn && s.todayTasks.length > 0 && (
+      {s.started && s.todayInChallenge && s.todayTasks.length > 0 && (
         <div className="player-foot">
           {s.todayComplete ? (
             <span className="safe">All done for today ✓</span>
           ) : (
             <span>
               <span className="risk">{money(s.atRisk, ch.currency)} at stake</span>
-              {traditional && ' + back to day 1'} if not done by midnight
+              {traditional && ' + back to day 1'} if not ticked by midnight tomorrow
             </span>
           )}
         </div>
       )}
     </section>
+  );
+}
+
+function TaskList({
+  tasks,
+  done: doneMap,
+  canTick,
+  onToggle,
+}: {
+  tasks: Task[];
+  done: Record<string, number>;
+  canTick: boolean;
+  onToggle: (taskId: string, done: boolean) => void;
+}) {
+  const [popped, setPopped] = useState<string | null>(null);
+  return (
+    <ul className="tasks">
+      {tasks.map((t) => {
+        const done = Boolean(doneMap[t.id]);
+        const cls = `task${done ? ' is-done' : ''}${canTick ? '' : ' readonly'}${popped === t.id ? ' pop' : ''}`;
+        const inner = (
+          <>
+            <span className="task-emoji" aria-hidden>
+              {t.emoji}
+            </span>
+            <span className="task-title">{t.title}</span>
+            <span className="check">
+              <CheckIcon />
+            </span>
+          </>
+        );
+        return (
+          <li key={t.id}>
+            {canTick ? (
+              <button
+                className={cls}
+                role="checkbox"
+                aria-checked={done}
+                onClick={() => {
+                  if (!done) {
+                    setPopped(t.id);
+                    navigator.vibrate?.(12);
+                  }
+                  onToggle(t.id, !done);
+                }}
+              >
+                {inner}
+              </button>
+            ) : (
+              <div className={cls} role="checkbox" aria-checked={done} aria-readonly>
+                {inner}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
