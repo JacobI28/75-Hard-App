@@ -217,3 +217,15 @@ export const prettyCode = (code: string) => `${code.slice(0, 4)}-${code.slice(4)
 export function newId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
+
+/**
+ * The first emoji in what someone typed (keeps multi-part emoji like 🏋️‍♂️, 🇬🇧 or 👍🏽 whole),
+ * or null if there isn't one.
+ */
+export function firstEmoji(input: string): string | null {
+  const parts =
+    typeof Intl !== 'undefined' && 'Segmenter' in Intl
+      ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(input), (s) => s.segment)
+      : Array.from(input);
+  return parts.find((g) => /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u.test(g)) ?? null;
+}

@@ -12,7 +12,7 @@ import {
   suggestEmoji,
 } from '../lib/actions';
 import { addDays, formatDay } from '../lib/dates';
-import { editableTasks, effectiveDate, isLocked, money, other, prettyCode, ruleFor } from '../lib/logic';
+import { editableTasks, effectiveDate, firstEmoji, isLocked, money, other, prettyCode, ruleFor } from '../lib/logic';
 import { isSyncConfigured } from '../lib/store';
 import type { Challenge, Mode, PlayerId, Task } from '../lib/types';
 
@@ -96,6 +96,8 @@ function TaskEditor({ ch, me, today }: { ch: Challenge; me: PlayerId; today: str
           </div>
         )}
 
+        {tasks.length > 0 && <div className="small muted">Tap an icon to change it to any emoji you like.</div>}
+
         {tasks.length > 0 && (
           <ul className="editor-list">
             {tasks.map((t, i) => {
@@ -166,24 +168,59 @@ function TaskEditor({ ch, me, today }: { ch: Challenge; me: PlayerId; today: str
       </div>
 
       {emojiFor && (
-        <Sheet title="Pick an icon" onClose={() => setEmojiFor(null)}>
-          <div className="emoji-grid">
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                className={e === emojiFor.emoji ? 'on' : ''}
-                onClick={() => {
-                  editTask(ch, me, emojiFor.id, { emoji: e });
-                  setEmojiFor(null);
-                }}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        </Sheet>
+        <EmojiSheet
+          task={emojiFor}
+          onPick={(e) => {
+            if (e !== emojiFor.emoji) editTask(ch, me, emojiFor.id, { emoji: e });
+            setEmojiFor(null);
+          }}
+          onClose={() => setEmojiFor(null)}
+        />
       )}
     </section>
+  );
+}
+
+function EmojiSheet({ task, onPick, onClose }: { task: Task; onPick: (emoji: string) => void; onClose: () => void }) {
+  const [typed, setTyped] = useState('');
+  const custom = firstEmoji(typed);
+  return (
+    <Sheet title="Choose an icon" sub={task.title} onClose={onClose}>
+      <div className="stack">
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (custom) onPick(custom);
+          }}
+        >
+          <span className="emoji-preview" aria-hidden>
+            {custom ?? task.emoji}
+          </span>
+          <input
+            id="custom-emoji"
+            className="input"
+            placeholder="Type any emoji 🦵🥊🧃"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            aria-label="Your own emoji"
+          />
+          <button className="btn accent" type="submit" disabled={!custom}>
+            Use
+          </button>
+        </form>
+        {typed && !custom && <div className="small muted">That doesn’t look like an emoji. Switch to your emoji keyboard (🌐 or ☺ key) and pick one.</div>}
+        <div className="small muted">Or pick one of these:</div>
+        <div className="emoji-grid">
+          {EMOJIS.map((e) => (
+            <button key={e} className={e === task.emoji ? 'on' : ''} onClick={() => onPick(e)} aria-label={`Use ${e}`}>
+              {e}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

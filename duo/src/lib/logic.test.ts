@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays } from './dates';
-import { activeTasks, balance, effectiveDate, ruleFor, summarize } from './logic';
+import { activeTasks, balance, effectiveDate, firstEmoji, ruleFor, summarize } from './logic';
 import type { Challenge, Mode, Task } from './types';
 
 const START = '2026-01-01';
@@ -169,6 +169,17 @@ describe('task scheduling', () => {
     const ch = { startDate: START };
     expect(effectiveDate(ch, START)).toBe(START);
     expect(effectiveDate(ch, '2026-01-04')).toBe('2026-01-05');
+  });
+});
+
+describe('firstEmoji', () => {
+  it('keeps multi-part emoji whole and ignores plain text', () => {
+    expect(firstEmoji('🦵')).toBe('🦵');
+    expect(firstEmoji('  🏋️‍♂️ legs')).toBe('🏋️‍♂️');
+    expect(firstEmoji('🇬🇧')).toBe('🇬🇧');
+    expect(firstEmoji('👍🏽👍')).toBe('👍🏽');
+    expect(firstEmoji('abc')).toBeNull();
+    expect(firstEmoji('')).toBeNull();
   });
 });
 
