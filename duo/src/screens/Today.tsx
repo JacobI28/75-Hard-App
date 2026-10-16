@@ -127,7 +127,7 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onNote, onNudge, onShare, onEd
           </div>
           <div className="player-sub">{sub}</div>
         </div>
-        <ProgressRing value={doneCount} total={s.todayTasks.length} />
+        <ProgressRing value={doneCount} total={s.started ? s.todayTasks.length : s.day1Tasks.length} />
       </div>
 
       <div className="stats">
@@ -200,6 +200,16 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onNote, onNudge, onShare, onEd
               <strong>That was day 75.</strong>
               <div className="muted small">{graceOpen ? 'Finish yesterday’s tasks to complete the challenge.' : 'It locks in at midnight.'}</div>
             </div>
+          ) : !s.started && s.day1Tasks.length > 0 ? (
+            <>
+              <div className="list-label">Day 1 · {formatDay(ch.startDate)}</div>
+              <TaskList tasks={s.day1Tasks} done={{}} canTick={false} onToggle={() => {}} onNote={() => {}} />
+              <div className="player-foot">
+                <span>
+                  {isMe ? 'You can tick these off from day 1.' : `${player.name} can tick these off from day 1.`} Change them any time before then in Setup.
+                </span>
+              </div>
+            </>
           ) : s.todayTasks.length === 0 ? (
             <div className="empty">
               {isMe ? (

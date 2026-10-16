@@ -106,6 +106,8 @@ describe('summarize', () => {
     expect(s.daysUntilStart).toBe(3);
     expect(s.debt).toBe(0);
     expect(s.atRisk).toBe(0);
+    expect(s.todayTasks).toEqual([]);
+    expect(s.day1Tasks.map((t) => t.id)).toEqual(['a', 'b']);
   });
 });
 

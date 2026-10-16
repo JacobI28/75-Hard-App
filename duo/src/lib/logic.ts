@@ -79,6 +79,8 @@ export interface PlayerSummary {
   /** False once day 75 is behind you (and only yesterday's grace period is left). */
   todayInChallenge: boolean;
   todayTasks: Task[];
+  /** Before the challenge starts: the tasks that will count on day 1. */
+  day1Tasks: Task[];
   todayDone: Record<string, number>;
   todayComplete: boolean;
   /** What today would cost if nothing else gets ticked. */
@@ -168,6 +170,7 @@ export function summarize(ch: Challenge, pid: PlayerId, today: string): PlayerSu
     grace,
     todayInChallenge,
     todayTasks,
+    day1Tasks: today < start ? activeTasks(ch.tasks?.[pid], start) : [],
     todayDone,
     todayComplete,
     atRisk: todayInChallenge ? remaining * todayRule.penalty : 0,
