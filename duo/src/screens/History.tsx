@@ -30,7 +30,6 @@ const clock = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: '
 /** Head-to-head tally of daily race wins, with one dot per day. */
 function RaceHistory({ ch, me, today, tally }: { ch: Challenge; me: PlayerId; today: string; tally: RaceTally }) {
   const [selected, setSelected] = useState<DayRace | null>(null);
-  if (!tally.days.length) return null;
   const sides: PlayerId[] = [me, other(me)];
   const [a, b] = sides.map((pid) => tally.wins[pid]);
   const leader = a === b ? null : a > b ? sides[0] : sides[1];
@@ -64,6 +63,13 @@ function RaceHistory({ ch, me, today, tally }: { ch: Challenge; me: PlayerId; to
         <div className="small muted" style={{ textAlign: 'center', marginTop: -6 }}>
           days won{tally.ties ? ` · ${tally.ties} dead heat${tally.ties === 1 ? '' : 's'}` : ''} · first to finish all their tasks wins the day
         </div>
+        {tally.days.length === 0 && (
+          <div className="banner small">
+            {today < ch.startDate
+              ? `The first race is on day 1, ${formatDay(ch.startDate, { weekday: 'long', day: 'numeric', month: 'long' })}. Each day you both have tasks gets a dot here in the winner’s colour.`
+              : 'The race starts once you both have tasks set up. Each day gets a dot here in the winner’s colour.'}
+          </div>
+        )}
         <div className="race-dots">
           {tally.days.map((r) => (
             <button
