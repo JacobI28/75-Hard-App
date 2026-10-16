@@ -4,7 +4,7 @@ import { Icons, Sheet, Toasts, useToasts } from './components/ui';
 import { NUDGE_PRESETS, recordPayment, sendNudge, setNote, toggleTask } from './lib/actions';
 import { useChallenge, useClock } from './lib/hooks';
 import { addDays } from './lib/dates';
-import { balance, MILESTONES, money, other, prettyCode, raceFor, raceTally, summarize, type PlayerSummary } from './lib/logic';
+import { balance, gapBonus, MILESTONES, money, other, prettyCode, raceEnd, raceFor, raceTally, summarize, type PlayerSummary } from './lib/logic';
 import { isSyncConfigured, loadSession, saveSession, type Session } from './lib/store';
 import type { Challenge, PlayerId } from './lib/types';
 import { History } from './screens/History';
@@ -102,8 +102,13 @@ function Dashboard({
   const { toasts, push } = useToasts();
 
   const summaries = useMemo(() => ({ p1: summarize(ch, 'p1', today), p2: summarize(ch, 'p2', today) }), [ch, today]);
-  const bal = useMemo(() => balance({ p1: summaries.p1.debt, p2: summaries.p2.debt }, ch.payments), [summaries, ch.payments]);
-  const tally = useMemo(() => raceTally(ch, today), [ch, today]);
+  const tally = useMemo(() => raceTally(ch, today, raceEnd(summaries)), [ch, today, summaries]);
+  const bonus = useMemo(() => gapBonus(ch, tally), [ch, tally]);
+  const bal = useMemo(() => {
+    // Once the race is over, the gap bonus joins the loser's penalties.
+    const extra = (pid: PlayerId) => (bonus.due && bonus.payer === pid ? bonus.amount : 0);
+    return balance({ p1: summaries.p1.debt + extra('p1'), p2: summaries.p2.debt + extra('p2') }, ch.payments);
+  }, [summaries, ch.payments, bonus]);
   const wonToday = tally.days.find((d) => d.date === today)?.winner === me;
 
   usePartnerToasts(ch, me, today, push);
@@ -186,6 +191,7 @@ function Dashboard({
             summaries={summaries}
             bal={bal}
             tally={tally}
+            bonus={bonus}
             today={today}
             onToggle={(date, taskId, done) => toggleTask(ch, me, date ?? today, taskId, done)}
             onNote={(date, taskId) => setNoteFor({ date: date ?? today, taskId })}
@@ -196,7 +202,7 @@ function Dashboard({
           />
         </>
       )}
-      {tab === 'history' && <History ch={ch} me={me} today={today} summaries={summaries} tally={tally} />}
+      {tab === 'history' && <History ch={ch} me={me} today={today} summaries={summaries} tally={tally} bonus={bonus} />}
       {tab === 'settings' && (
         <Settings
           ch={ch}

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Avatar, ConfirmButton } from '../components/ui';
 import { deletePayment } from '../lib/actions';
 import { addDays, formatDay } from '../lib/dates';
-import { CHALLENGE_DAYS, money, other, type DayRace, type DayResult, type PlayerSummary, type RaceTally } from '../lib/logic';
+import { CHALLENGE_DAYS, money, other, type DayRace, type DayResult, type GapBonus, type PlayerSummary, type RaceTally } from '../lib/logic';
+import { bonusLine } from './Today';
 import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
@@ -11,12 +12,13 @@ interface Props {
   today: string;
   summaries: Record<PlayerId, PlayerSummary>;
   tally: RaceTally;
+  bonus: GapBonus;
 }
 
-export function History({ ch, me, today, summaries, tally }: Props) {
+export function History({ ch, me, today, summaries, tally, bonus }: Props) {
   return (
     <>
-      <RaceHistory ch={ch} me={me} today={today} tally={tally} />
+      <RaceHistory ch={ch} me={me} today={today} tally={tally} bonus={bonus} />
       {[me, other(me)].map((pid) => (
         <PlayerGrid key={pid} ch={ch} pid={pid} today={today} s={summaries[pid]} />
       ))}
@@ -28,7 +30,7 @@ export function History({ ch, me, today, summaries, tally }: Props) {
 const clock = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
 
 /** Head-to-head tally of daily race wins, with one dot per day. */
-function RaceHistory({ ch, me, today, tally }: { ch: Challenge; me: PlayerId; today: string; tally: RaceTally }) {
+function RaceHistory({ ch, me, today, tally, bonus }: { ch: Challenge; me: PlayerId; today: string; tally: RaceTally; bonus: GapBonus }) {
   const [selected, setSelected] = useState<DayRace | null>(null);
   const sides: PlayerId[] = [me, other(me)];
   const [a, b] = sides.map((pid) => tally.wins[pid]);
@@ -81,6 +83,7 @@ function RaceHistory({ ch, me, today, tally }: { ch: Challenge; me: PlayerId; to
           ))}
         </div>
         {selected && <div className="banner small">{describe(selected)}</div>}
+        {bonus.enabled && <div className="race-bonus">{bonusLine(ch, bonus)}</div>}
       </div>
     </section>
   );

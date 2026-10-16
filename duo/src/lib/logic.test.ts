@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays } from './dates';
-import { activeTasks, balance, effectiveDate, firstEmoji, raceFor, raceTally, ruleFor, summarize } from './logic';
+import { activeTasks, balance, effectiveDate, firstEmoji, gapBonus, raceFor, raceTally, ruleFor, summarize } from './logic';
 import type { Challenge, Mode, Task } from './types';
 
 const START = '2026-01-01';
@@ -205,6 +205,44 @@ describe('daily race', () => {
     expect(t.days).toHaveLength(3);
     ch.tasks.p2 = {};
     expect(raceTally(ch, addDays(START, 2)).days).toHaveLength(0);
+  });
+});
+
+describe('race gap bonus', () => {
+  const wins = (ch: Challenge, p1: number, p2: number) => {
+    // p1 wins the first `p1` days, p2 the next `p2`.
+    for (let i = 0; i < p1 + p2; i++) {
+      const d = addDays(START, i);
+      if (i < p1) ch.done.p1[d] = { a: 1, b: 2 };
+      else ch.done.p2[d] = { a: 1 };
+    }
+  };
+
+  it('charges the day gap times the rate to whoever won fewer days, once the race is over', () => {
+    const ch = makeChallenge('traditional');
+    ch.raceBonus = { enabled: true, perDay: 2 };
+    wins(ch, 5, 2);
+    const live = gapBonus(ch, raceTally(ch, addDays(START, 6)));
+    expect(live).toMatchObject({ payer: 'p2', gap: 3, amount: 6, due: false });
+    const final = gapBonus(ch, raceTally(ch, addDays(START, 20), addDays(START, 6)));
+    expect(final).toMatchObject({ payer: 'p2', amount: 6, due: true });
+  });
+
+  it('costs nothing when switched off or level', () => {
+    const ch = makeChallenge('traditional');
+    wins(ch, 5, 2);
+    expect(gapBonus(ch, raceTally(ch, addDays(START, 6), START)).due).toBe(false); // off by default
+    ch.raceBonus = { enabled: true, perDay: 2 };
+    const level = makeChallenge('traditional');
+    level.raceBonus = { enabled: true, perDay: 2 };
+    wins(level, 3, 3);
+    expect(gapBonus(level, raceTally(level, addDays(START, 6), addDays(START, 6)))).toMatchObject({ payer: null, amount: 0, due: false });
+  });
+
+  it('stops counting race days once the race has closed', () => {
+    const ch = makeChallenge('traditional');
+    wins(ch, 5, 2);
+    expect(raceTally(ch, addDays(START, 10), addDays(START, 3)).days).toHaveLength(4);
   });
 });
 

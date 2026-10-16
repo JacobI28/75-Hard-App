@@ -264,19 +264,52 @@ export interface RaceTally {
   days: DayRace[];
   wins: Record<PlayerId, number>;
   ties: number;
+  /** True once the race has closed (the first of you completed 75 Hard). */
+  over: boolean;
 }
 
-/** Every race day from the start up to and including today. */
-export function raceTally(ch: Challenge, today: string): RaceTally {
+/**
+ * Every race day from the start up to today. The race closes on the day the first
+ * player completes 75 Hard (`endDate`), since after that only one of you can tick.
+ */
+export function raceTally(ch: Challenge, today: string, endDate: string | null = null): RaceTally {
   const days: DayRace[] = [];
   const wins: Record<PlayerId, number> = { p1: 0, p2: 0 };
   let ties = 0;
-  for (let d = ch.startDate; d <= today; d = addDays(d, 1)) {
+  const last = endDate && endDate < today ? endDate : today;
+  for (let d = ch.startDate; d <= last; d = addDays(d, 1)) {
     const race = raceFor(ch, d);
     if (!race) continue;
     days.push(race);
     if (race.winner === 'tie') ties++;
     else if (race.winner) wins[race.winner]++;
   }
-  return { days, wins, ties };
+  return { days, wins, ties, over: endDate !== null };
+}
+
+/** The day the race closes: the earliest day either player completed 75 Hard, if any. */
+export function raceEnd(summaries: Record<PlayerId, Pick<PlayerSummary, 'finishedOn'>>): string | null {
+  const ends = [summaries.p1.finishedOn, summaries.p2.finishedOn].filter((d): d is string => Boolean(d)).sort();
+  return ends[0] ?? null;
+}
+
+export interface GapBonus {
+  enabled: boolean;
+  perDay: number;
+  /** Who won fewer days (and so pays), or null when level. */
+  payer: PlayerId | null;
+  gap: number;
+  amount: number;
+  /** Whether it has been added to the pot (the race is over). */
+  due: boolean;
+}
+
+export const DEFAULT_RACE_BONUS = { enabled: false, perDay: 2 };
+
+export function gapBonus(ch: Challenge, tally: RaceTally): GapBonus {
+  const { enabled, perDay } = { ...DEFAULT_RACE_BONUS, ...ch.raceBonus };
+  const gap = Math.abs(tally.wins.p1 - tally.wins.p2);
+  const payer = gap === 0 ? null : tally.wins.p1 < tally.wins.p2 ? 'p1' : 'p2';
+  const amount = enabled ? gap * perDay : 0;
+  return { enabled, perDay, payer, gap, amount, due: enabled && tally.over && amount > 0 };
 }

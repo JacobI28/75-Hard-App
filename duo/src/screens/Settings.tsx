@@ -9,12 +9,13 @@ import {
   renamePlayer,
   restoreTask,
   setPhoto,
+  setRaceBonus,
   setRule,
   STANDARD_TASKS,
   suggestEmoji,
 } from '../lib/actions';
 import { addDays, formatDay } from '../lib/dates';
-import { editableTasks, effectiveDate, firstEmoji, isLocked, money, other, prettyCode, ruleFor } from '../lib/logic';
+import { DEFAULT_RACE_BONUS, editableTasks, effectiveDate, firstEmoji, isLocked, money, other, prettyCode, ruleFor } from '../lib/logic';
 import { isSyncConfigured } from '../lib/store';
 import type { Challenge, Mode, PlayerId, Task } from '../lib/types';
 
@@ -32,6 +33,7 @@ export function Settings({ ch, me, today, onShare, onSwitch, onLeave }: Props) {
     <>
       <TaskEditor ch={ch} me={me} today={today} />
       <RulesEditor ch={ch} today={today} />
+      <RaceBonusEditor ch={ch} />
       <PlayersEditor ch={ch} me={me} />
       <section>
         <h2 className="section-title">Invite</h2>
@@ -330,6 +332,54 @@ function RulesEditor({ ch, today }: { ch: Challenge; today: string }) {
           </button>
         )}
         <div className="small muted">Rules apply to both of you. Changing them mid-challenge never rewrites past days.</div>
+      </div>
+    </section>
+  );
+}
+
+function RaceBonusEditor({ ch }: { ch: Challenge }) {
+  const saved = { ...DEFAULT_RACE_BONUS, ...ch.raceBonus };
+  const [perDay, setPerDay] = useState(saved.perDay);
+  useEffect(() => setPerDay(saved.perDay), [saved.perDay]);
+  const cur = ch.currency;
+  return (
+    <section>
+      <h2 className="section-title">Daily race gap bonus · shared</h2>
+      <div className="card stack">
+        <div className="row between">
+          <div>
+            <strong>Loser pays the gap</strong>
+            <div className="small muted">At the end, whoever won fewer daily races pays for each day of difference.</div>
+          </div>
+          <button
+            className={`switch${saved.enabled ? ' on' : ''}`}
+            role="switch"
+            aria-checked={saved.enabled}
+            aria-label="Loser pays the gap"
+            onClick={() => setRaceBonus(ch, { enabled: !saved.enabled, perDay: saved.perDay })}
+          >
+            <span />
+          </button>
+        </div>
+        {saved.enabled && (
+          <>
+            <div className="row between wrap">
+              <span className="small muted">Per day of difference</span>
+              <PenaltyStepper value={perDay} onChange={setPerDay} currency={cur} />
+            </div>
+            {perDay !== saved.perDay && (
+              <button className="btn primary block" onClick={() => setRaceBonus(ch, { enabled: true, perDay })}>
+                Save {money(perDay, cur)} per day
+              </button>
+            )}
+            <div className="mode-help">
+              <span>
+                e.g. 45–30 is a gap of 15 days, so the loser pays <strong>{money(15 * perDay, cur)}</strong>. Level means nobody pays.
+              </span>
+              <span>The race ends when the first of you completes 75 Hard. The bonus is then added to the pot automatically.</span>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );

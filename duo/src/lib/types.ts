@@ -30,6 +30,12 @@ export interface Payment {
   note?: string;
 }
 
+/** End-of-challenge bonus: whoever won fewer daily races pays this much per day of difference. */
+export interface RaceBonus {
+  enabled: boolean;
+  perDay: number;
+}
+
 export interface Nudge {
   id: string;
   from: PlayerId;
@@ -66,4 +72,5 @@ export interface Challenge {
   notes?: Record<PlayerId, Record<string, Record<string, string>>>;
   /** Recent nudges between the two players (pruned after a few days). */
   nudges?: Record<string, Nudge>;
+  raceBonus?: RaceBonus;
 }

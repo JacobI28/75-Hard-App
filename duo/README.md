@@ -17,6 +17,8 @@ This is a standalone web app in its own folder. It doesn't touch the Expo app in
 - **Nudges:** tap 👊 Nudge on your partner's card to send a preset or custom message. It pops up on their screen straight away if the app is open, or the next time they open it.
 - **Notes:** after ticking a task, tap ✎ to add a note (e.g. "Bench PB 100kg"). Your partner sees it under the task, gets a pop-up, and it shows up in History.
 - **Celebrations:** confetti when you finish the day, and a full-screen moment at 7, 14, 21, 30, 40, 50, 60 and 75-day streaks.
+- **Daily race:** whoever ticks their last task first wins the day. A tug-of-war bar on the Today page shows it live, and History keeps the days-won score.
+- **Gap bonus (optional, Setup):** at the end, whoever won fewer daily races pays a set amount (default £2) per day of difference, e.g. 45–30 at £2 = £30. The race closes when the first of you completes 75 Hard, and the bonus is then added to the pot.
 - **Settle up:** record payments. The headline figure nets both people's penalties and payments into one "X owes Y" number.
 - **History:** a day-by-day grid for each person, plus a ledger of every missed day and payment.
 - **Fair-play locks:** once day 1 has passed, task and rule changes only apply from tomorrow, so nobody can delete a task to get out of it. Past days are never recalculated.

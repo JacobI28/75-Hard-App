@@ -1,7 +1,7 @@
 import { addDays, dateKey } from './dates';
 import { editableTasks, effectiveDate, newCode, newId } from './logic';
 import { DELETE, getBackend, type Change } from './store';
-import type { Challenge, Mode, Nudge, PlayerId, Task } from './types';
+import type { Challenge, Mode, Nudge, PlayerId, RaceBonus, Task } from './types';
 
 async function update(code: string, ...changes: Change[]) {
   const b = await getBackend();
@@ -221,3 +221,5 @@ export function sendNudge(ch: Challenge, from: PlayerId, text: string) {
 }
 
 export const setPhoto = (ch: Challenge, pid: PlayerId, photo: string | null) => update(ch.code, [['players', pid, 'photo'], photo]);
+
+export const setRaceBonus = (ch: Challenge, bonus: RaceBonus) => update(ch.code, [['raceBonus'], bonus]);

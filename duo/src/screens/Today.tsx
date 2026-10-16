@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Avatar, CheckIcon, ProgressRing } from '../components/ui';
 import { dateKey, formatDay } from '../lib/dates';
-import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type PlayerSummary, type RaceTally } from '../lib/logic';
+import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type GapBonus, type PlayerSummary, type RaceTally } from '../lib/logic';
 import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   summaries: Record<PlayerId, PlayerSummary>;
   bal: Balance;
   tally: RaceTally;
+  bonus: GapBonus;
   today: string;
   onToggle: (date: string | null, taskId: string, done: boolean) => void;
   onNote: (date: string | null, taskId: string) => void;
@@ -19,12 +20,12 @@ interface Props {
   onEditTasks: () => void;
 }
 
-export function Today({ ch, me, summaries, bal, tally, today, onToggle, onNote, onNudge, onSettle, onShare, onEditTasks }: Props) {
+export function Today({ ch, me, summaries, bal, tally, bonus, today, onToggle, onNote, onNudge, onSettle, onShare, onEditTasks }: Props) {
   const order: PlayerId[] = [me, other(me)];
   return (
     <>
-      <DebtCard ch={ch} bal={bal} summaries={summaries} onSettle={onSettle} />
-      <RaceCard ch={ch} me={me} summaries={summaries} tally={tally} today={today} />
+      <DebtCard ch={ch} bal={bal} summaries={summaries} bonus={bonus} onSettle={onSettle} />
+      <RaceCard ch={ch} me={me} summaries={summaries} tally={tally} bonus={bonus} today={today} />
       <div className="players">
         {order.map((pid) => (
           <PlayerCard
@@ -45,6 +46,16 @@ export function Today({ ch, me, summaries, bal, tally, today, onToggle, onNote, 
   );
 }
 
+/** One line on where the end-of-challenge gap bonus stands. */
+export function bonusLine(ch: Challenge, b: GapBonus): string {
+  const rate = `${money(b.perDay, ch.currency)} per day of difference`;
+  if (!b.payer) return `Gap bonus: level, nobody pays · ${rate}`;
+  const who = ch.players[b.payer].name;
+  return b.due
+    ? `Gap bonus: ${who} lost by ${b.gap} and owes ${money(b.amount, ch.currency)} (added to the pot)`
+    : `Gap bonus: ${who} is on course to pay ${money(b.amount, ch.currency)} · ${rate}`;
+}
+
 const clock = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
 
 /** Tug of war: each side fills from its own end towards the middle as tasks get ticked. */
@@ -53,12 +64,14 @@ function RaceCard({
   me,
   summaries,
   tally,
+  bonus,
   today,
 }: {
   ch: Challenge;
   me: PlayerId;
   summaries: Record<PlayerId, PlayerSummary>;
   tally: RaceTally;
+  bonus: GapBonus;
   today: string;
 }) {
   const sides: PlayerId[] = [me, other(me)];
@@ -73,7 +86,8 @@ function RaceCard({
   const notStarted = !summaries[me].started;
 
   let status: string;
-  if (notStarted) status = `The race starts ${formatDay(ch.startDate)}`;
+  if (tally.over) status = 'The race is over';
+  else if (notStarted) status = `The race starts ${formatDay(ch.startDate)}`;
   else if (!race) status = 'The race starts once you both have tasks';
   else if (race.winner === 'tie') status = 'Dead heat today 🤝';
   else if (race.winner) {
@@ -117,11 +131,24 @@ function RaceCard({
         <div className="tug-mid" />
       </div>
       <div className="race-status">{status}</div>
+      {bonus.enabled && <div className="race-bonus">{bonusLine(ch, bonus)}</div>}
     </section>
   );
 }
 
-function DebtCard({ ch, bal, summaries, onSettle }: { ch: Challenge; bal: Balance; summaries: Record<PlayerId, PlayerSummary>; onSettle: () => void }) {
+function DebtCard({
+  ch,
+  bal,
+  summaries,
+  bonus,
+  onSettle,
+}: {
+  ch: Challenge;
+  bal: Balance;
+  summaries: Record<PlayerId, PlayerSummary>;
+  bonus: GapBonus;
+  onSettle: () => void;
+}) {
   const cur = ch.currency;
   const rule = summaries.p1.todayRule;
   const { debtor } = bal;
@@ -146,6 +173,7 @@ function DebtCard({ ch, bal, summaries, onSettle }: { ch: Challenge; bal: Balanc
             <div className="val">{money(bal.penalties[pid], cur)}</div>
             <div className="sub">
               {summaries[pid].missedTasks} missed task{summaries[pid].missedTasks === 1 ? '' : 's'}
+              {bonus.due && bonus.payer === pid && ` · ${money(bonus.amount, cur)} race bonus`}
               {bal.paid[pid] > 0 && ` · ${money(bal.paid[pid], cur)} paid`}
             </div>
           </div>
