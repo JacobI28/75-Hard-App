@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConfirmButton } from '../components/ui';
 import { deletePayment } from '../lib/actions';
 import { addDays, formatDay } from '../lib/dates';
-import { CHALLENGE_DAYS, money, other, type DayResult, type PlayerSummary } from '../lib/logic';
+import { CHALLENGE_DAYS, money, other, type DayRace, type DayResult, type PlayerSummary, type RaceTally } from '../lib/logic';
 import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
@@ -10,16 +10,73 @@ interface Props {
   me: PlayerId;
   today: string;
   summaries: Record<PlayerId, PlayerSummary>;
+  tally: RaceTally;
 }
 
-export function History({ ch, me, today, summaries }: Props) {
+export function History({ ch, me, today, summaries, tally }: Props) {
   return (
     <>
+      <RaceHistory ch={ch} me={me} today={today} tally={tally} />
       {[me, other(me)].map((pid) => (
         <PlayerGrid key={pid} ch={ch} pid={pid} today={today} s={summaries[pid]} />
       ))}
       <Ledger ch={ch} summaries={summaries} />
     </>
+  );
+}
+
+const clock = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
+
+/** Head-to-head tally of daily race wins, with one dot per day. */
+function RaceHistory({ ch, me, today, tally }: { ch: Challenge; me: PlayerId; today: string; tally: RaceTally }) {
+  const [selected, setSelected] = useState<DayRace | null>(null);
+  if (!tally.days.length) return null;
+  const sides: PlayerId[] = [me, other(me)];
+  const [a, b] = sides.map((pid) => tally.wins[pid]);
+  const leader = a === b ? null : a > b ? sides[0] : sides[1];
+  const name = (pid: PlayerId) => ch.players[pid].name;
+  const describe = (r: DayRace) => {
+    const when = r.date === today ? 'Today' : formatDay(r.date);
+    if (r.winner === 'tie') return `${when}: dead heat`;
+    if (!r.winner) return `${when}: ${r.date === today ? 'nobody has finished yet' : 'nobody finished'}`;
+    const loser = other(r.winner);
+    const gap = r.finishedAt[loser] ? `, ${name(loser)} at ${clock(r.finishedAt[loser]!)}` : `, ${name(loser)} didn’t finish`;
+    return `${when}: ${name(r.winner)} finished first at ${clock(r.finishedAt[r.winner]!)}${gap}`;
+  };
+
+  return (
+    <section>
+      <h2 className="section-title" style={{ marginTop: 4 }}>
+        Daily race
+      </h2>
+      <div className="card stack">
+        <div className="race-board">
+          {sides.map((pid, i) => (
+            <div key={pid} className={`race-board-side ${pid}${i === 1 ? ' right' : ''}`}>
+              <span className="race-board-name">
+                {leader === pid && '👑 '}
+                {name(pid)}
+              </span>
+              <span className="race-board-wins">{tally.wins[pid]}</span>
+            </div>
+          ))}
+        </div>
+        <div className="small muted" style={{ textAlign: 'center', marginTop: -6 }}>
+          days won{tally.ties ? ` · ${tally.ties} dead heat${tally.ties === 1 ? '' : 's'}` : ''} · first to finish all their tasks wins the day
+        </div>
+        <div className="race-dots">
+          {tally.days.map((r) => (
+            <button
+              key={r.date}
+              className={`race-dot ${r.winner === 'tie' ? 'tie' : r.winner ?? 'none'}${selected?.date === r.date ? ' selected' : ''}`}
+              onClick={() => setSelected(selected?.date === r.date ? null : r)}
+              aria-label={describe(r)}
+            />
+          ))}
+        </div>
+        {selected && <div className="banner small">{describe(selected)}</div>}
+      </div>
+    </section>
   );
 }
 

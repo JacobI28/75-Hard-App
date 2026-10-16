@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Avatar, CheckIcon, ProgressRing } from '../components/ui';
 import { dateKey, formatDay } from '../lib/dates';
-import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type PlayerSummary } from '../lib/logic';
+import { CHALLENGE_DAYS, money, other, prettyCode, type Balance, type PlayerSummary, type RaceTally } from '../lib/logic';
 import type { Challenge, PlayerId, Task } from '../lib/types';
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
   me: PlayerId;
   summaries: Record<PlayerId, PlayerSummary>;
   bal: Balance;
+  tally: RaceTally;
+  today: string;
   onToggle: (date: string | null, taskId: string, done: boolean) => void;
   onNote: (date: string | null, taskId: string) => void;
   onNudge: () => void;
@@ -17,11 +19,12 @@ interface Props {
   onEditTasks: () => void;
 }
 
-export function Today({ ch, me, summaries, bal, onToggle, onNote, onNudge, onSettle, onShare, onEditTasks }: Props) {
+export function Today({ ch, me, summaries, bal, tally, today, onToggle, onNote, onNudge, onSettle, onShare, onEditTasks }: Props) {
   const order: PlayerId[] = [me, other(me)];
   return (
     <>
       <DebtCard ch={ch} bal={bal} summaries={summaries} onSettle={onSettle} />
+      <RaceCard ch={ch} me={me} summaries={summaries} tally={tally} today={today} />
       <div className="players">
         {order.map((pid) => (
           <PlayerCard
@@ -39,6 +42,82 @@ export function Today({ ch, me, summaries, bal, onToggle, onNote, onNudge, onSet
         ))}
       </div>
     </>
+  );
+}
+
+const clock = (ts: number) => new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
+
+/** Tug of war: each side fills from its own end towards the middle as tasks get ticked. */
+function RaceCard({
+  ch,
+  me,
+  summaries,
+  tally,
+  today,
+}: {
+  ch: Challenge;
+  me: PlayerId;
+  summaries: Record<PlayerId, PlayerSummary>;
+  tally: RaceTally;
+  today: string;
+}) {
+  const sides: PlayerId[] = [me, other(me)];
+  const race = tally.days.find((d) => d.date === today) ?? null;
+  const progress = (pid: PlayerId) => {
+    const s = summaries[pid];
+    const tasks = s.started ? s.todayTasks : s.day1Tasks;
+    const done = s.started ? tasks.filter((t) => s.todayDone[t.id]).length : 0;
+    return { done, total: tasks.length, complete: tasks.length > 0 && done === tasks.length };
+  };
+  const name = (pid: PlayerId) => ch.players[pid].name;
+  const notStarted = !summaries[me].started;
+
+  let status: string;
+  if (notStarted) status = `The race starts ${formatDay(ch.startDate)}`;
+  else if (!race) status = 'The race starts once you both have tasks';
+  else if (race.winner === 'tie') status = 'Dead heat today 🤝';
+  else if (race.winner) {
+    const loser = other(race.winner);
+    status = `${name(race.winner)} won today 🏁 ${clock(race.finishedAt[race.winner]!)}${race.finishedAt[loser] ? ` · ${name(loser)} finished too` : ''}`;
+  } else status = 'First to finish wins the day';
+
+  const scroll = (pid: PlayerId) => document.getElementById(`card-${pid}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  return (
+    <section className="card race" aria-label="Today’s race">
+      <div className="race-head">
+        <span>Daily race</span>
+        {tally.days.length > 0 && (
+          <span className="race-score">
+            Days won <b className={sides[0]}>{tally.wins[sides[0]]}</b> – <b className={sides[1]}>{tally.wins[sides[1]]}</b>
+          </span>
+        )}
+      </div>
+      <div className="race-sides">
+        {sides.map((pid, i) => {
+          const p = progress(pid);
+          const won = race?.winner === pid;
+          return (
+            <button key={pid} className={`race-side ${pid}${i === 1 ? ' right' : ''}`} onClick={() => scroll(pid)}>
+              <Avatar name={name(pid)} pid={pid} />
+              <span className="race-name">{name(pid)}</span>
+              <span className={`race-count${p.complete ? ' done' : ''}`}>
+                {p.total ? `${p.done}/${p.total}` : '–'}
+                {won ? ' 🏁' : p.complete ? ' ✓' : ''}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="tug" role="img" aria-label={sides.map((pid) => `${name(pid)} ${progress(pid).done} of ${progress(pid).total}`).join(', ')}>
+        {sides.map((pid, i) => {
+          const p = progress(pid);
+          return <div key={pid} className={`tug-fill ${pid} ${i === 0 ? 'left' : 'right'}`} style={{ width: `${p.total ? (p.done / p.total) * 50 : 0}%` }} />;
+        })}
+        <div className="tug-mid" />
+      </div>
+      <div className="race-status">{status}</div>
+    </section>
   );
 }
 
@@ -117,7 +196,7 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onNote, onNudge, onShare, onEd
         : `Day ${s.dayNumber} of ${CHALLENGE_DAYS}${s.resets ? ` · ${s.resets} restart${s.resets === 1 ? '' : 's'}` : ''}`;
 
   return (
-    <section className={`card player ${pid}`} aria-label={`${player.name}'s day`}>
+    <section id={`card-${pid}`} className={`card player ${pid}`} aria-label={`${player.name}'s day`}>
       <div className="player-head">
         <Avatar name={player.name} pid={pid} />
         <div style={{ minWidth: 0 }}>

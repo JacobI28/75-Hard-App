@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, diffDays } from './dates';
-import { activeTasks, balance, effectiveDate, firstEmoji, ruleFor, summarize } from './logic';
+import { activeTasks, balance, effectiveDate, firstEmoji, raceFor, raceTally, ruleFor, summarize } from './logic';
 import type { Challenge, Mode, Task } from './types';
 
 const START = '2026-01-01';
@@ -180,6 +180,31 @@ describe('firstEmoji', () => {
     expect(firstEmoji('👍🏽👍')).toBe('👍🏽');
     expect(firstEmoji('abc')).toBeNull();
     expect(firstEmoji('')).toBeNull();
+  });
+});
+
+describe('daily race', () => {
+  it('goes to whoever ticks their last task first', () => {
+    const ch = makeChallenge('traditional');
+    ch.done.p1[START] = { a: 100, b: 500 };
+    ch.done.p2[START] = { a: 300 };
+    expect(raceFor(ch, START)?.winner).toBe('p2');
+    ch.done.p2[START] = {};
+    expect(raceFor(ch, START)?.winner).toBe('p1'); // only one finished
+    ch.done.p1[START] = { a: 100 };
+    expect(raceFor(ch, START)?.winner).toBeNull(); // nobody finished
+  });
+
+  it('tallies wins and skips days when someone has no tasks', () => {
+    const ch = makeChallenge('traditional');
+    ch.done.p1[START] = { a: 1, b: 2 };
+    ch.done.p2[addDays(START, 1)] = { a: 5 };
+    ch.done.p1[addDays(START, 1)] = { a: 1, b: 9 };
+    const t = raceTally(ch, addDays(START, 2));
+    expect(t.wins).toEqual({ p1: 1, p2: 1 });
+    expect(t.days).toHaveLength(3);
+    ch.tasks.p2 = {};
+    expect(raceTally(ch, addDays(START, 2)).days).toHaveLength(0);
   });
 });
 

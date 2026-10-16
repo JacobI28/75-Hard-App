@@ -4,7 +4,7 @@ import { Icons, Sheet, Toasts, useToasts } from './components/ui';
 import { NUDGE_PRESETS, recordPayment, sendNudge, setNote, toggleTask } from './lib/actions';
 import { useChallenge, useClock } from './lib/hooks';
 import { addDays } from './lib/dates';
-import { balance, MILESTONES, money, other, prettyCode, summarize, type PlayerSummary } from './lib/logic';
+import { balance, MILESTONES, money, other, prettyCode, raceFor, raceTally, summarize, type PlayerSummary } from './lib/logic';
 import { isSyncConfigured, loadSession, saveSession, type Session } from './lib/store';
 import type { Challenge, PlayerId } from './lib/types';
 import { History } from './screens/History';
@@ -103,10 +103,12 @@ function Dashboard({
 
   const summaries = useMemo(() => ({ p1: summarize(ch, 'p1', today), p2: summarize(ch, 'p2', today) }), [ch, today]);
   const bal = useMemo(() => balance({ p1: summaries.p1.debt, p2: summaries.p2.debt }, ch.payments), [summaries, ch.payments]);
+  const tally = useMemo(() => raceTally(ch, today), [ch, today]);
+  const wonToday = tally.days.find((d) => d.date === today)?.winner === me;
 
   usePartnerToasts(ch, me, today, push);
   useIncomingNudges(ch, me, push);
-  useCelebrations(summaries[me], today, push, ch.players[me].name, me, setCelebration);
+  useCelebrations(summaries[me], today, push, ch.players[me].name, me, setCelebration, wonToday);
 
   useEffect(() => window.scrollTo({ top: 0 }), [tab]);
 
@@ -183,6 +185,8 @@ function Dashboard({
             me={me}
             summaries={summaries}
             bal={bal}
+            tally={tally}
+            today={today}
             onToggle={(date, taskId, done) => toggleTask(ch, me, date ?? today, taskId, done)}
             onNote={(date, taskId) => setNoteFor({ date: date ?? today, taskId })}
             onNudge={() => setNudging(true)}
@@ -192,7 +196,7 @@ function Dashboard({
           />
         </>
       )}
-      {tab === 'history' && <History ch={ch} me={me} today={today} summaries={summaries} />}
+      {tab === 'history' && <History ch={ch} me={me} today={today} summaries={summaries} tally={tally} />}
       {tab === 'settings' && (
         <Settings
           ch={ch}
@@ -256,7 +260,10 @@ function usePartnerToasts(ch: Challenge, me: PlayerId, today: string, push: Retu
       const newly = (key: 'today' | 'yesterday') => Object.keys(now[key]).filter((id) => !before[key][id] && tasks[id]);
       const addedToday = newly('today');
       const addedLate = newly('yesterday');
-      if (addedToday.length && s.todayComplete) push({ pid: partner, name, text: `${name} smashed all of today’s tasks 🔥` });
+      if (addedToday.length && s.todayComplete) {
+        const first = raceFor(ch, today)?.winner === partner;
+        push({ pid: partner, name, text: first ? `${name} finished first and won the day 🏁` : `${name} smashed all of today’s tasks 🔥` });
+      }
       else for (const id of addedToday) push({ pid: partner, name, text: `${name} ticked off ${tasks[id].emoji} ${tasks[id].title}` });
       if (addedLate.length && s.grace?.perfect) push({ pid: partner, name, text: `${name} saved yesterday just in time 😅` });
       else for (const id of addedLate) push({ pid: partner, name, text: `${name} ticked off yesterday’s ${tasks[id].emoji} ${tasks[id].title}` });
@@ -317,6 +324,7 @@ function useCelebrations(
   name: string,
   me: PlayerId,
   setCelebration: (c: CelebrationInfo) => void,
+  wonToday: boolean,
 ) {
   const prev = useRef<{ day: string; streak: number; complete: boolean } | null>(null);
   useEffect(() => {
@@ -336,9 +344,9 @@ function useCelebrations(
       });
     } else if (s.todayComplete && !before.complete) {
       confetti();
-      push({ pid: me, name, text: 'All done for today 💪 Enjoy the rest of your day.' });
+      push({ pid: me, name, text: wonToday ? 'All done, and you won the day 🏁' : 'All done for today 💪 Enjoy the rest of your day.' });
     }
-  }, [s.liveStreak, s.todayComplete, today, push, name, me, setCelebration]);
+  }, [s.liveStreak, s.todayComplete, today, push, name, me, setCelebration, wonToday]);
 }
 
 function NudgeSheet({ ch, me, onClose, onSent }: { ch: Challenge; me: PlayerId; onClose: () => void; onSent: () => void }) {

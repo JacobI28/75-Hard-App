@@ -229,3 +229,54 @@ export function firstEmoji(input: string): string | null {
       : Array.from(input);
   return parts.find((g) => /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u.test(g)) ?? null;
 }
+
+/** When a player ticked their last task of the day, or null if they haven't finished it. */
+export function completionTime(ch: Challenge, pid: PlayerId, date: string): number | null {
+  const tasks = activeTasks(ch.tasks?.[pid], date);
+  if (!tasks.length) return null;
+  const done = ch.done?.[pid]?.[date] ?? {};
+  let last = 0;
+  for (const t of tasks) {
+    if (!done[t.id]) return null;
+    last = Math.max(last, done[t.id]);
+  }
+  return last;
+}
+
+export interface DayRace {
+  date: string;
+  /** Whoever finished all their tasks first. Settled as soon as one person finishes. */
+  winner: PlayerId | 'tie' | null;
+  finishedAt: Record<PlayerId, number | null>;
+}
+
+export function raceFor(ch: Challenge, date: string): DayRace | null {
+  // Only a race when both players have tasks that day.
+  if (!activeTasks(ch.tasks?.p1, date).length || !activeTasks(ch.tasks?.p2, date).length) return null;
+  const finishedAt = { p1: completionTime(ch, 'p1', date), p2: completionTime(ch, 'p2', date) };
+  const { p1, p2 } = finishedAt;
+  const winner: DayRace['winner'] =
+    p1 === null && p2 === null ? null : p2 === null || (p1 !== null && p1 < p2) ? 'p1' : p1 === null || p2 < p1 ? 'p2' : 'tie';
+  return { date, winner, finishedAt };
+}
+
+export interface RaceTally {
+  days: DayRace[];
+  wins: Record<PlayerId, number>;
+  ties: number;
+}
+
+/** Every race day from the start up to and including today. */
+export function raceTally(ch: Challenge, today: string): RaceTally {
+  const days: DayRace[] = [];
+  const wins: Record<PlayerId, number> = { p1: 0, p2: 0 };
+  let ties = 0;
+  for (let d = ch.startDate; d <= today; d = addDays(d, 1)) {
+    const race = raceFor(ch, d);
+    if (!race) continue;
+    days.push(race);
+    if (race.winner === 'tie') ties++;
+    else if (race.winner) wins[race.winner]++;
+  }
+  return { days, wins, ties };
+}

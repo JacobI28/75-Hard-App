@@ -153,13 +153,24 @@ export async function createSampleChallenge(): Promise<Challenge> {
   };
   const ids = { p1: Object.keys(tasks.p1), p2: Object.keys(tasks.p2) };
   const done: Challenge['done'] = { p1: {}, p2: {} };
+  // Tick times spread through the day, so each side wins some daily races.
+  const at = (daysAgo: number, hour: number) => {
+    const t = new Date();
+    t.setDate(t.getDate() - daysAgo);
+    t.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
+    return Math.min(t.getTime(), Date.now() - 60_000);
+  };
   for (let n = 12; n >= 1; n--) {
     const d = addDays(today, -n);
-    done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 7 && i === 3)).map((id) => [id, 1]));
-    done.p2[d] = Object.fromEntries(ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4) || (n === 1 && i === 1))).map((id) => [id, 1]));
+    const p1Pace = n % 3 === 0 ? 2.2 : 1.6;
+    const p2Pace = n % 3 === 0 ? 1.5 : 1.9;
+    done.p1[d] = Object.fromEntries(ids.p1.filter((_, i) => !(n === 7 && i === 3)).map((id, i) => [id, at(n, 8 + i * p1Pace)]));
+    done.p2[d] = Object.fromEntries(
+      ids.p2.filter((_, i) => !((n === 7 && i < 2) || (n === 3 && i === 4) || (n === 1 && i === 1))).map((id, i) => [id, at(n, 9 + i * p2Pace)]),
+    );
   }
-  done.p1[today] = { [ids.p1[0]]: 1, [ids.p1[2]]: 1 };
-  done.p2[today] = { [ids.p2[0]]: 1, [ids.p2[2]]: 1, [ids.p2[3]]: 1 };
+  done.p1[today] = { [ids.p1[0]]: at(0, 7), [ids.p1[2]]: at(0, 8) };
+  done.p2[today] = { [ids.p2[0]]: at(0, 6.5), [ids.p2[2]]: at(0, 7.5), [ids.p2[3]]: at(0, 8.5) };
   const notes: Challenge['notes'] = {
     p1: { [addDays(today, -1)]: { [ids.p1[4]]: 'Finished Atomic Habits 📚' } },
     p2: { [today]: { [ids.p2[0]]: 'Chest day. Bench PB 100kg 💪' } },
