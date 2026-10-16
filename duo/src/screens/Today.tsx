@@ -99,7 +99,7 @@ function RaceCard({
           const won = race?.winner === pid;
           return (
             <button key={pid} className={`race-side ${pid}${i === 1 ? ' right' : ''}`} onClick={() => scroll(pid)}>
-              <Avatar name={name(pid)} pid={pid} />
+              <Avatar name={name(pid)} pid={pid} photo={ch.players[pid].photo} />
               <span className="race-name">{name(pid)}</span>
               <span className={`race-count${p.complete ? ' done' : ''}`}>
                 {p.total ? `${p.done}/${p.total}` : '–'}
@@ -198,7 +198,7 @@ function PlayerCard({ ch, pid, isMe, s, onToggle, onNote, onNudge, onShare, onEd
   return (
     <section id={`card-${pid}`} className={`card player ${pid}`} aria-label={`${player.name}'s day`}>
       <div className="player-head">
-        <Avatar name={player.name} pid={pid} />
+        <Avatar name={player.name} pid={pid} photo={player.photo} />
         <div style={{ minWidth: 0 }}>
           <div className="player-name">
             {player.name}

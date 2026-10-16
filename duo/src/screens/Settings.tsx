@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ConfirmButton, EMOJIS, Sheet } from '../components/ui';
+import { Avatar, ConfirmButton, EMOJIS, Sheet } from '../components/ui';
+import { squarePhoto } from '../lib/image';
 import {
   addTasks,
   editTask,
@@ -7,6 +8,7 @@ import {
   removeTask,
   renamePlayer,
   restoreTask,
+  setPhoto,
   setRule,
   STANDARD_TASKS,
   suggestEmoji,
@@ -30,7 +32,7 @@ export function Settings({ ch, me, today, onShare, onSwitch, onLeave }: Props) {
     <>
       <TaskEditor ch={ch} me={me} today={today} />
       <RulesEditor ch={ch} today={today} />
-      <PlayersEditor ch={ch} />
+      <PlayersEditor ch={ch} me={me} />
       <section>
         <h2 className="section-title">Invite</h2>
         <div className="card stack">
@@ -333,19 +335,63 @@ function RulesEditor({ ch, today }: { ch: Challenge; today: string }) {
   );
 }
 
-function PlayersEditor({ ch }: { ch: Challenge }) {
+function PlayersEditor({ ch, me }: { ch: Challenge; me: PlayerId }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const myPhoto = ch.players[me].photo;
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      await setPhoto(ch, me, await squarePhoto(file));
+    } catch (e) {
+      setError((e as Error).message || 'Couldn’t save that photo.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section>
-      <h2 className="section-title">Names</h2>
+      <h2 className="section-title">Players</h2>
       <div className="card stack">
-        {(['p1', 'p2'] as PlayerId[]).map((pid) => (
+        {([me, other(me)] as PlayerId[]).map((pid) => (
           <div key={pid} className={`row ${pid}`}>
-            <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11, fontSize: 15 }}>
-              {ch.players[pid].name.charAt(0).toUpperCase()}
-            </span>
+            {pid === me ? (
+              <label className="photo-pick" aria-label={myPhoto ? 'Change your photo' : 'Add your photo'}>
+                <Avatar name={ch.players[pid].name} pid={pid} photo={ch.players[pid].photo} className="lg" />
+                <span className="photo-badge" aria-hidden>
+                  {busy ? '…' : '📷'}
+                </span>
+                <input
+                  id="photo-input"
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  disabled={busy}
+                  onChange={(e) => {
+                    upload(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            ) : (
+              <Avatar name={ch.players[pid].name} pid={pid} photo={ch.players[pid].photo} className="lg" />
+            )}
             <TitleInput value={ch.players[pid].name} onSave={(v) => renamePlayer(ch.code, pid, v)} />
           </div>
         ))}
+        <div className="row between wrap">
+          <span className="small muted">Tap your picture to add a photo. {ch.players[other(me)].name} adds their own on their phone.</span>
+          {myPhoto && (
+            <button className="btn sm ghost" onClick={() => setPhoto(ch, me, null)}>
+              Remove my photo
+            </button>
+          )}
+        </div>
+        {error && <div className="error">{error}</div>}
       </div>
     </section>
   );

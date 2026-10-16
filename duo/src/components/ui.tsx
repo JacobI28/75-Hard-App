@@ -35,8 +35,15 @@ export const CheckIcon = () => (
   </svg>
 );
 
-export function Avatar({ name, pid }: { name: string; pid: PlayerId }) {
-  return <div className={`avatar ${pid}`}>{(name || '?').trim().charAt(0).toUpperCase()}</div>;
+export function Avatar({ name, pid, photo, className = '' }: { name: string; pid: PlayerId; photo?: string | null; className?: string }) {
+  if (photo) {
+    return (
+      <div className={`avatar has-photo ${pid} ${className}`}>
+        <img src={photo} alt="" />
+      </div>
+    );
+  }
+  return <div className={`avatar ${pid} ${className}`}>{(name || '?').trim().charAt(0).toUpperCase()}</div>;
 }
 
 export function Sheet({ title, sub, onClose, children }: { title: string; sub?: string; onClose: () => void; children: ReactNode }) {
@@ -82,12 +89,12 @@ export function useToasts() {
   return { toasts, push };
 }
 
-export function Toasts({ toasts }: { toasts: Toast[] }) {
+export function Toasts({ toasts, photos }: { toasts: Toast[]; photos?: Partial<Record<PlayerId, string | null>> }) {
   return (
     <div className="toasts" aria-live="polite">
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.pid}${t.kind ? ` ${t.kind}` : ''}`}>
-          <Avatar name={t.name} pid={t.pid} />
+          <Avatar name={t.name} pid={t.pid} photo={photos?.[t.pid]} />
           <span>{t.text}</span>
         </div>
       ))}

@@ -41,6 +41,8 @@ export interface Nudge {
 export interface Player {
   name: string;
   joined: boolean;
+  /** Small square JPEG as a data URL (about 10KB), shown in place of the initial. */
+  photo?: string | null;
 }
 
 /**

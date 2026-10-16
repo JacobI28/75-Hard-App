@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ConfirmButton } from '../components/ui';
+import { Avatar, ConfirmButton } from '../components/ui';
 import { deletePayment } from '../lib/actions';
 import { addDays, formatDay } from '../lib/dates';
 import { CHALLENGE_DAYS, money, other, type DayRace, type DayResult, type PlayerSummary, type RaceTally } from '../lib/logic';
@@ -269,7 +269,7 @@ function Ledger({ ch, summaries }: { ch: Challenge; summaries: Record<PlayerId, 
             {entries.map((e) =>
               e.kind === 'miss' ? (
                 <li key={`${e.pid}-${e.day.date}`} className={e.pid}>
-                  <div className="icon">{ch.players[e.pid].name.charAt(0).toUpperCase()}</div>
+                  <Avatar name={ch.players[e.pid].name} pid={e.pid} photo={ch.players[e.pid].photo} className="ledger-avatar" />
                   <div className="grow">
                     <div className="title">
                       {ch.players[e.pid].name} missed {e.day.missed.length} task{e.day.missed.length === 1 ? '' : 's'}

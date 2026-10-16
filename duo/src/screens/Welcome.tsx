@@ -4,6 +4,7 @@ import { dateKey } from '../lib/dates';
 import { normalizeCode, prettyCode } from '../lib/logic';
 import { isSyncConfigured, type Session } from '../lib/store';
 import type { Challenge, Mode, PlayerId } from '../lib/types';
+import { Avatar } from '../components/ui';
 import { ModeHelp, PenaltyStepper } from './Settings';
 
 type Step = 'home' | 'create' | 'join';
@@ -225,7 +226,7 @@ function JoinForm({ initialCode, onBack, onReady }: { initialCode: string; onBac
           <div className="who-pick">
             {(['p1', 'p2'] as PlayerId[]).map((pid) => (
               <button key={pid} className={`${pid}${who === pid ? ' on' : ''}`} onClick={() => setWho(pid)}>
-                <span className="avatar">{found.players[pid].name.charAt(0).toUpperCase()}</span>
+                <Avatar name={found.players[pid].name} pid={pid} photo={found.players[pid].photo} />
                 {found.players[pid].name}
                 <span className="small muted" style={{ fontWeight: 600 }}>
                   {found.players[pid].joined ? 'Already joined' : 'Not joined yet'}

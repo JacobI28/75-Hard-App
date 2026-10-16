@@ -219,3 +219,5 @@ export function sendNudge(ch: Challenge, from: PlayerId, text: string) {
     .map((n) => [['nudges', n.id], DELETE]);
   return update(ch.code, [['nudges', id], nudge], ...stale);
 }
+
+export const setPhoto = (ch: Challenge, pid: PlayerId, photo: string | null) => update(ch.code, [['players', pid, 'photo'], photo]);

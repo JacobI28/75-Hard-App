@@ -140,7 +140,7 @@ function Dashboard({
 
   return (
     <div className="app">
-      <Toasts toasts={toasts} />
+      <Toasts toasts={toasts} photos={{ p1: ch.players.p1.photo, p2: ch.players.p2.photo }} />
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">75</div>
